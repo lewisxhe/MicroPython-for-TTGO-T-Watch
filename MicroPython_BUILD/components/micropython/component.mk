@@ -302,6 +302,13 @@ LIB_SRC_C += \
 	lib/berkeley-db-1.xx/mpool/mpool.c
 endif
 
+ifdef CONFIG_MICROPY_USE_FT5X06
+LIBS_SRC_C += \
+	esp32/libs/i2c_bus/i2c_bus.c \
+	esp32/libs/ft5x06/ft5x06.c\
+	esp32/modft5x06.c 
+endif
+
 OBJ_MP =
 OBJ_MP += $(PY_O)
 OBJ_MP += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))

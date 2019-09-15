@@ -14,7 +14,7 @@ bl.value(1)
 '''
 enable axp202 adc 
 '''
-pmu.enableADC( axp202.AXP202_ADC1,axp202.AXP202_BATT_VOL_ADC1 )
+pmu.enableADC(axp202.AXP202_ADC1,axp202.AXP202_BATT_VOL_ADC1)
 pmu.enableADC(axp202.AXP202_ADC1, axp202.AXP202_BATT_CUR_ADC1)
 pmu.enableADC(axp202.AXP202_ADC1, axp202.AXP202_VBUS_VOL_ADC1)
 pmu.enableADC(axp202.AXP202_ADC1, axp202.AXP202_VBUS_CUR_ADC1)
