@@ -336,7 +336,10 @@ SRC_C += $(subst $(TOP)/,,$(shell find $(LVGL_DIR) -type f -name "*.c") $(LVGL_M
 MP_EXTRA_INC += -I$(LVGL_BINDING_DIR)/include
 
 LIBS_SRC_C += \
-	esp32/lvgl_helper.c 
+	esp32/lvgl_helper.c \
+	esp32/modlvesp32.c 
+
+endif
 
 OBJ_MP =
 OBJ_MP += $(PY_O)

@@ -1,5 +1,6 @@
 import lvgl as lv
 import lvgl_helper as lv_h
+import lvesp32
 import display
 import time
 import machine
@@ -54,9 +55,12 @@ label = lv.label(btn)
 label.set_text("Button")
 lv.scr_load(scr)
 
+#! If you import lvesp32 you don't need
+'''
 while True:
     tim = time.ticks_ms()
     lv.tick_inc(5)
     lv.task_handler()
     while time.ticks_ms()-tim < 0.005:
         pass
+'''

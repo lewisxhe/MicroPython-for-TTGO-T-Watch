@@ -343,9 +343,12 @@ extern const struct _mp_obj_module_t mp_module_touchscreen;
 
 extern const struct _mp_obj_module_t mp_module_lvgl;
 extern const struct _mp_obj_module_t mp_module_lvgl_helper;
+extern const struct _mp_obj_module_t mp_module_lvesp32;
+
 #define BUILTIN_MODULE_LVGL     \
             { MP_OBJ_NEW_QSTR(MP_QSTR_lvgl), (mp_obj_t)&mp_module_lvgl }, \
-            { MP_OBJ_NEW_QSTR(MP_QSTR_lvgl_helper), (mp_obj_t)&mp_module_lvgl_helper },
+            { MP_OBJ_NEW_QSTR(MP_QSTR_lvgl_helper), (mp_obj_t)&mp_module_lvgl_helper },\
+            { MP_OBJ_NEW_QSTR(MP_QSTR_lvesp32), (mp_obj_t)&mp_module_lvesp32 },
 #else
 #define LV_ROOTS
 #define BUILTIN_MODULE_LVGL
