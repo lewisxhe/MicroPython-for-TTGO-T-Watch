@@ -331,10 +331,18 @@ menu "MicroPython"
                 Include support for various SPI TFT displays
 
         config MICROPY_USE_FT5X06
+            depends on MICROPY_USE_DISPLAY
             bool "Enable support for I2C FT5X/6X touchscreen"
             default y
             help
                 Include support for FT5X/6X touchscreen dirve
+
+        config MICROPY_USE_LVGL
+            depends on MICROPY_USE_DISPLAY
+            bool "Enable support for LVGL GUI Library"
+            default y
+            help
+                Include support for lvgl gui library
 
         config MICROPY_USE_EPD
             depends on MICROPY_USE_DISPLAY

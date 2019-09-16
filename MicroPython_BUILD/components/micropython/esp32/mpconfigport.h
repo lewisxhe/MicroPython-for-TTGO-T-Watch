@@ -338,6 +338,19 @@ extern const struct _mp_obj_module_t mp_module_touchscreen;
 #define BUILTIN_MODULE_FT5X06
 #endif
 
+#ifdef CONFIG_MICROPY_USE_LVGL
+#include "libs/lvgl/lv_binding/lvgl/src/lv_misc/lv_gc.h"
+
+extern const struct _mp_obj_module_t mp_module_lvgl;
+extern const struct _mp_obj_module_t mp_module_lvgl_helper;
+#define BUILTIN_MODULE_LVGL     \
+            { MP_OBJ_NEW_QSTR(MP_QSTR_lvgl), (mp_obj_t)&mp_module_lvgl }, \
+            { MP_OBJ_NEW_QSTR(MP_QSTR_lvgl_helper), (mp_obj_t)&mp_module_lvgl_helper },
+#else
+#define LV_ROOTS
+#define BUILTIN_MODULE_LVGL
+#endif
+
 #define MICROPY_PORT_BUILTIN_MODULES \
     { MP_OBJ_NEW_QSTR(MP_QSTR_utime),    (mp_obj_t)&utime_module }, \
     { MP_OBJ_NEW_QSTR(MP_QSTR_uos),      (mp_obj_t)&uos_module }, \
@@ -354,6 +367,7 @@ extern const struct _mp_obj_module_t mp_module_touchscreen;
 	BUILTIN_MODULE_OTA \
 	BUILTIN_MODULE_BLUETOOTH \
     BUILTIN_MODULE_FT5X06 \
+    BUILTIN_MODULE_LVGL \
 
 #define MICROPY_PORT_BUILTIN_MODULE_WEAK_LINKS \
     { MP_OBJ_NEW_QSTR(MP_QSTR_binascii), (mp_obj_t)&mp_module_ubinascii }, \
@@ -375,8 +389,16 @@ extern const struct _mp_obj_module_t mp_module_touchscreen;
 
 #define MP_STATE_PORT MP_STATE_VM
 
+struct _machine_timer_obj_t;
+
+
 #define MICROPY_PORT_ROOT_POINTERS \
+    LV_ROOTS \
+    void *mp_lv_user_data; \
     const char *readline_hist[20]; \
+    mp_obj_t machine_pin_irq_handler[40]; \
+    struct _machine_timer_obj_t *machine_timer_obj_head; \
+
 
 // type definitions for the specific machine
 #define BYTES_PER_WORD (4)

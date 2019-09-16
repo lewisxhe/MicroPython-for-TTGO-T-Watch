@@ -309,6 +309,35 @@ LIBS_SRC_C += \
 	esp32/modft5x06.c 
 endif
 
+ifdef CONFIG_MICROPY_USE_LVGL
+LVGL_BINDING_DIR = $(TOP)/esp32/libs/lvgl/lv_binding
+LVGL_DIR = $(LVGL_BINDING_DIR)/lvgl
+INC += -I $(LVGL_DIR)
+ALL_LVGL_SRC = $(shell find $(LVGL_DIR) -type f)  $(LVGL_BINDING_DIR)/lv_conf.h
+QSTR_GLOBAL_DEPENDENCIES += $(LVGL_MPY)
+
+LVGL_MPY = $(BUILD)/lvgl/lv_mpy.c
+LVGL_PP = $(BUILD)/lvgl/lvgl.pp.c
+LVGL_MPY_METADATA = $(BUILD)/lvgl/lv_mpy.json
+
+LV_CFLAGS = -DLV_COLOR_DEPTH=16 -DLV_COLOR_16_SWAP=0
+
+$(LVGL_MPY): $(ALL_LVGL_SRC) $(LVGL_BINDING_DIR)/gen/gen_mpy.py 
+	$(ECHO) "LVGL-GEN $@"
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(CPP) $(LV_CFLAGS) -I $(LVGL_BINDING_DIR)/pycparser/utils/fake_libc_include $(INC) $(LVGL_DIR)/lvgl.h > $(LVGL_PP)
+	$(Q)$(PYTHON) $(LVGL_BINDING_DIR)/gen/gen_mpy.py -M lvgl -MP lv -MD $(LVGL_MPY_METADATA) -E $(LVGL_PP) $(LVGL_DIR)/lvgl.h > $@
+
+
+CFLAGS_MOD += -Wno-unused-function 
+CFLAGS += $(LV_CFLAGS)
+
+SRC_C += $(subst $(TOP)/,,$(shell find $(LVGL_DIR) -type f -name "*.c") $(LVGL_MPY))
+MP_EXTRA_INC += -I$(LVGL_BINDING_DIR)/include
+
+LIBS_SRC_C += \
+	esp32/lvgl_helper.c 
+
 OBJ_MP =
 OBJ_MP += $(PY_O)
 OBJ_MP += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
