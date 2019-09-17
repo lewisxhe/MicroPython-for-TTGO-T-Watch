@@ -309,6 +309,14 @@ LIBS_SRC_C += \
 	esp32/modft5x06.c 
 endif
 
+ifdef CONFIG_MICROPY_USE_BMA423
+LIBS_SRC_C += \
+	esp32/libs/bma423/bma.c \
+	esp32/libs/bma423/bma4.c \
+	esp32/libs/bma423/bma423.c \
+	esp32/libs/bma423/py_bma.c
+endif
+
 ifdef CONFIG_MICROPY_USE_LVGL
 LVGL_BINDING_DIR = $(TOP)/esp32/libs/lvgl/lv_binding
 LVGL_DIR = $(LVGL_BINDING_DIR)/lvgl

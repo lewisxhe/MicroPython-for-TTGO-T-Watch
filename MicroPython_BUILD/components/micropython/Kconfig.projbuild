@@ -358,6 +358,12 @@ menu "MicroPython"
             help
                 Include support for EVE displays (FT80x, FT81x)
 
+        config MICROPY_USE_BMA423
+            bool "Enable support for bma423 acceleration senso"
+            default y
+            help
+                Include support for bma423 acceleration sensor
+
         config MICROPY_EVE_IC_TYPE
             int
             depends on MICROPY_USE_EVE

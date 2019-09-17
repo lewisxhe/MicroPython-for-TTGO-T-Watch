@@ -354,6 +354,16 @@ extern const struct _mp_obj_module_t mp_module_lvesp32;
 #define BUILTIN_MODULE_LVGL
 #endif
 
+#ifdef CONFIG_MICROPY_USE_BMA423
+extern const struct _mp_obj_module_t mp_module_bma423;
+#define BUILTIN_MODULE_BMA423 \
+    { MP_OBJ_NEW_QSTR(MP_QSTR_bma423), (mp_obj_t)&mp_module_bma423 }, 
+#else
+#define BUILTIN_MODULE_BMA423
+#endif
+
+
+
 #define MICROPY_PORT_BUILTIN_MODULES \
     { MP_OBJ_NEW_QSTR(MP_QSTR_utime),    (mp_obj_t)&utime_module }, \
     { MP_OBJ_NEW_QSTR(MP_QSTR_uos),      (mp_obj_t)&uos_module }, \
@@ -371,6 +381,8 @@ extern const struct _mp_obj_module_t mp_module_lvesp32;
 	BUILTIN_MODULE_BLUETOOTH \
     BUILTIN_MODULE_FT5X06 \
     BUILTIN_MODULE_LVGL \
+    BUILTIN_MODULE_BMA423 \
+
 
 #define MICROPY_PORT_BUILTIN_MODULE_WEAK_LINKS \
     { MP_OBJ_NEW_QSTR(MP_QSTR_binascii), (mp_obj_t)&mp_module_ubinascii }, \
