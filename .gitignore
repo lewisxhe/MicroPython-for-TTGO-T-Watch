@@ -8,7 +8,7 @@
 *.hex
 *.dis
 #*.exe
-
+.vscode
 # Packages 
 ############
 

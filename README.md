@@ -1,3 +1,200 @@
+
+# MicroPython for TTGO T-Watch
+
+This is a branch from Lobo fork, I added it to Twatch's hardware driver and the `lvgl` graphics library, thanks to Lobo's clean project (than the official).
+
+## Add the following drivers
+- PCF8563 Real-time clock/calendar driver
+- BMA423 Low-g acceleration sensor driver
+- LVGL popular embedded graphics library
+- FT5x/6x touch screen driver
+- AXP202 advanced multi-channel power management chip driver
+
+### The following examples have all been tested in T-Watch.
+
+#### BMA423 interrupt example
+```
+from machine import I2C
+from machine import Pin
+import bma423 as bma
+
+def handle_interrupt(pin):
+	state = bma.read_irq()
+	if state == bma.IRQ_STEP_COUNTER:
+		s = bma.stepcount()
+		print('IRQ_STEP_COUNTER %u' % s)
+	elif state == bma.IRQ_DOUBLE_WAKEUP:
+		print('IRQ_DOUBLE_WAKEUP')
+
+i2c = I2C(scl=22, sda=21,speed=400000)
+bma.init(i2c,irq=True)
+irq = Pin(39, mode=Pin.IN,handler=handle_interrupt,trigger=Pin.IRQ_RISING)
+```
+
+#### BMA423 accel example
+```
+from machine import I2C
+from machine import Pin
+import bma423 as bma
+import time
+
+i2c = I2C(scl=22, sda=21,speed=400000)
+bma.init(i2c)
+
+while True:
+	bma.accel()
+	time.sleep_ms(200)
+```
+
+#### FT5x/6x touchscreen example
+```
+import machine
+import touchscreen as ts
+import time
+
+i2c = machine.I2C(scl=32, sda=23, speed=400000)
+
+ts.init(i2c)
+while True:
+  ts.read()
+  time.sleep(0.2);
+```
+
+#### PCF8563 RTC example
+```
+import utime
+import time
+import pcf8563
+from machine import I2C
+from machine import Pin
+
+def handle_interrupt(pin):
+    if r.check_for_alarm_interrupt():
+        print('is alarm clock interrupt')
+    else:
+        print('is not for alarm interrupt')
+    r.clear_alarm()
+
+irq = Pin(37, mode=Pin.IN,handler=handle_interrupt,trigger=Pin.IRQ_FALLING)
+i2c = I2C(scl=22, sda=21)
+r = pcf8563.PCF8563(i2c)
+
+print('rtc time')
+r.datetime()
+time.sleep(1)
+
+print('Clear alarm config register')
+r.clear_alarm()
+
+print('Setting current clock datetime')
+r.write_all(50,30,15,3,17,9,49)
+
+print('Set the alarm to match for minutes')
+r.set_daily_alarm(minutes=31)
+
+print('Enable rtc chip interrupt')
+r.enable_alarm_interrupt()
+
+while True:
+    r.datetime()
+    time.sleep(1)
+```
+
+#### AXP202 Power example
+```
+from machine import I2C
+from machine import Pin
+import axp202
+import time
+
+i2c = I2C(scl=22, sda=21)
+print(i2c)
+pmu = axp202.PMU(i2c)
+pmu.enablePower(axp202.AXP202_LDO2)
+pmu.setLDO2Voltage(3300)
+bl = Pin(12, Pin.OUT)
+bl.value(1)
+
+'''
+enable axp202 adc 
+'''
+pmu.enableADC(axp202.AXP202_ADC1,axp202.AXP202_BATT_VOL_ADC1)
+pmu.enableADC(axp202.AXP202_ADC1, axp202.AXP202_BATT_CUR_ADC1)
+pmu.enableADC(axp202.AXP202_ADC1, axp202.AXP202_VBUS_VOL_ADC1)
+pmu.enableADC(axp202.AXP202_ADC1, axp202.AXP202_VBUS_CUR_ADC1)
+
+
+while True:
+  if pmu.isVBUSPlug():
+    vbus = pmu.getVbusVoltage()
+    cbus = pmu.getVbusCurrent()
+    print("vbus is connect VBUS is {} mV Current is {} mA".format( vbus , cbus))
+
+  if pmu.isBatteryConnect():
+    vbatt = pmu.getBattVoltage()
+    percent = pmu.getBattPercentage()
+    print("battery percent is {}% battery is {} mV".format(percent , vbatt))
+  time.sleep(1)
+```
+
+#### lvgl example
+```
+import lvgl as lv
+import lvgl_helper as lv_h
+import lvesp32
+import display
+import time
+import machine
+import touchscreen as ts
+import axp202
+import random
+
+i2c0 = machine.I2C(scl=22, sda=21)
+pmu = axp202.PMU(i2c0)
+pmu.enablePower(axp202.AXP202_LDO2)
+pmu.setLDO2Voltage(3300)
+tft = display.TFT()
+
+i2c = machine.I2C(id=1, scl=32, sda=23, speed=400000)
+ts.init(i2c)
+
+tft.init(tft.ST7789,width=240, invrot=3,rot=1,bgr=False, height=240, miso=2, mosi=19, clk=18, cs=5, dc=27,speed=40000000,color_bits=tft.COLOR_BITS16,backl_pin=12,backl_on=1)
+
+lv.init()
+disp_buf1 = lv.disp_buf_t()
+buf1_1 = bytes(240*10)
+lv.disp_buf_init(disp_buf1,buf1_1, None, len(buf1_1)//4)
+disp_drv = lv.disp_drv_t()
+lv.disp_drv_init(disp_drv)
+disp_drv.buffer = disp_buf1
+disp_drv.flush_cb = lv_h.flush
+disp_drv.hor_res = 240
+disp_drv.ver_res = 240
+lv.disp_drv_register(disp_drv)
+
+indev_drv = lv.indev_drv_t()
+lv.indev_drv_init(indev_drv) 
+indev_drv.type = lv.INDEV_TYPE.POINTER
+indev_drv.read_cb = lv_h.read
+lv.indev_drv_register(indev_drv)
+
+scr = lv.obj()
+btn = lv.btn(scr)
+btn.align(lv.scr_act(), lv.ALIGN.CENTER, 0, 0)
+label = lv.label(btn)
+label.set_text("Button")
+lv.scr_load(scr)
+
+```
+
+Examples can be found in the `modules_examples` directory.
+
+
+
+
+The following is Lobo original Readme, I am not going to delete it.
+
+
 # MicroPython for ESP32
 
 # with support for 4MB of psRAM
