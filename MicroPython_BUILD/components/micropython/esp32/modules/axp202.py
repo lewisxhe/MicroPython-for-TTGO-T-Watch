@@ -27,9 +27,12 @@ github:https://github.com/lewisxhe/AXP202X_Libraries
 '''
 
 
+import gc
+from machine import Pin, I2C
 import micropython
 from ustruct import unpack
-from axp_constants import *
+
+from constants import *
 
 default_pin_scl = 22
 default_pin_sda = 21
@@ -44,11 +47,13 @@ class PMU(object):
         self.chip = chip if chip is not None else default_chip_type
         self.address = address if address else default_dev_address
 
+
         self.buffer = bytearray(16)
         self.bytebuf = memoryview(self.buffer[0:1])
         self.wordbuf = memoryview(self.buffer[0:2])
         self.irqbuf = memoryview(self.buffer[0:5])
 
+  
         self.init_device()
 
     def init_i2c(self):
@@ -82,10 +87,11 @@ class PMU(object):
         print('* initializing mpu')
         self.chip = self.read_byte(AXP202_IC_TYPE)
         if(self.chip == AXP202_CHIP_ID):
+            self.chip = AXP202_CHIP_ID
             print("Detect PMU Type is AXP202")
         elif(self.chip == AXP192_CHIP_ID):
             print("Detect PMU Type is AXP192")
-            raise Exception("No Support AXP192!")
+            self.chip = AXP192_CHIP_ID
         else:
             raise Exception("Invalid Chip ID!")
 
@@ -293,8 +299,8 @@ class PMU(object):
     def setDC2Voltage(self, mv):
         if(mv < 700):
             mv = 700
-        elif(mv > 3500):
-            mv = 3500
+        elif(mv > 2275):
+            mv = 2275
         val = (mv - 700) / 25
         self.write_byte(AXP202_DC2OUT_VOL, int(val))
 
@@ -312,21 +318,42 @@ class PMU(object):
         elif(mv > 3300):
             mv = 3300
         val = (mv - 1800) / 100
-        self.write_byte(AXP202_LDO24OUT_VOL, int(val))
+        prev = self.read_byte(AXP202_LDO24OUT_VOL)
+        prev &= 0x0F
+        prev = prev | (int(val) << 4)
+        self.write_byte(AXP202_LDO24OUT_VOL, int(prev))
 
     def setLDO3Voltage(self, mv):
-        if(mv < 700):
+        if self.chip == AXP202_CHIP_ID and mv < 700:
             mv = 700
-        elif(mv > 2275):
-            mv = 2275
-        val = (mv - 700) / 25
-        self.write_byte(AXP202_LDO3OUT_VOL, int(val))
+        elif self.chip == AXP192_CHIP_ID and mv < 1800:
+            mv = 1800
+
+        if self.chip == AXP202_CHIP_ID and mv > 3500:
+            mv = 3500
+        elif self.chip == AXP192_CHIP_ID and mv > 3300:
+            mv = 3300
+
+        if self.chip == AXP202_CHIP_ID:
+            val = (mv - 700) / 25
+            prev = self.read_byte(AXP202_LDO3OUT_VOL)
+            prev &= 0x80
+            prev = prev | int(val)
+            self.write_byte(AXP202_LDO3OUT_VOL, int(prev))
+            # self.write_byte(AXP202_LDO3OUT_VOL, int(val))
+        elif self.chip == AXP192_CHIP_ID:
+            val = (mv - 1800) / 100
+            prev = self.read_byte(AXP192_LDO23OUT_VOL)
+            prev &= 0xF0
+            prev = prev | int(val)
+            self.write_byte(AXP192_LDO23OUT_VOL, int(prev))
 
     def setLDO4Voltage(self, arg):
-        data = self.read_byte(AXP202_LDO24OUT_VOL)
-        data = data & 0xF0
-        data = data | arg
-        self.write_byte(AXP202_LDO24OUT_VOL, data)
+        if self.chip == AXP202_CHIP_ID and arg <= AXP202_LDO4_3300MV:
+            data = self.read_byte(AXP202_LDO24OUT_VOL)
+            data = data & 0xF0
+            data = data | arg
+            self.write_byte(AXP202_LDO24OUT_VOL, data)
 
     def setLDO3Mode(self, mode):
         if(mode > AXP202_LDO3_DCIN_MODE):
@@ -426,6 +453,11 @@ class PMU(object):
         if(mask):
             return 0
         return data & (~self.__BIT_MASK(7))
+
+    def setChgLEDChgControl(self):
+        data = self.read_byte(AXP202_OFF_CTL)
+        data = data & 0b111110111
+        self.write_byte(AXP202_OFF_CTL, data)
 
     def setChgLEDMode(self, mode):
         data = self.read_byte(AXP202_OFF_CTL)
