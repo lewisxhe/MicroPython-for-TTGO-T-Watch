@@ -1,6 +1,11 @@
 
 # MicroPython for TTGO T-Watch
 
+## Installation prerequisites
+```
+sudo apt-get install git wget flex bison gperf python python-pip python-setuptools cmake ninja-build ccache libffi-dev libssl-dev dfu-util
+```
+
 This is a branch from Lobo fork, I added it to Twatch's hardware driver and the `lvgl` graphics library, thanks to Lobo's clean project (than the official).
 
 ## Add the following drivers
