@@ -40,20 +40,19 @@ default_pin_intr = 35
 default_chip_type = AXP202_CHIP_ID
 default_dev_address = AXP202_SLAVE_ADDRESS
 
+
 class PMU(object):
-    def __init__(self,i2c,address=None,chip=None):
+    def __init__(self, i2c, address=None, chip=None):
 
         self.bus = i2c
         self.chip = chip if chip is not None else default_chip_type
         self.address = address if address else default_dev_address
-
 
         self.buffer = bytearray(16)
         self.bytebuf = memoryview(self.buffer[0:1])
         self.wordbuf = memoryview(self.buffer[0:2])
         self.irqbuf = memoryview(self.buffer[0:5])
 
-  
         self.init_device()
 
     def init_i2c(self):
@@ -84,13 +83,10 @@ class PMU(object):
         return unpack('>h', self.wordbuf)[0]
 
     def init_device(self):
-        print('* initializing mpu')
         self.chip = self.read_byte(AXP202_IC_TYPE)
         if(self.chip == AXP202_CHIP_ID):
             self.chip = AXP202_CHIP_ID
-            print("Detect PMU Type is AXP202")
         elif(self.chip == AXP192_CHIP_ID):
-            print("Detect PMU Type is AXP192")
             self.chip = AXP192_CHIP_ID
         else:
             raise Exception("Invalid Chip ID!")
