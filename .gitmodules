@@ -1,3 +1,0 @@
-[submodule "MicroPython_BUILD/components/micropython/esp32/libs/lvgl/lv_binding"]
-	path = MicroPython_BUILD/components/micropython/esp32/libs/lvgl/lv_binding
-	url = https://github.com/littlevgl/lv_binding_micropython.git
