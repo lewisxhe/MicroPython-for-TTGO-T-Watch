@@ -1,3 +1,23 @@
+menu "Hadrware select"
+    choice TWATCH_MODEL
+        bool "Select hardware model"
+        default TWATCH_MODEL_2020_V1
+        help
+            Select hardware model.
+    config TWATCH_MODEL_2019_TOUCHPALNE
+        bool "LilyGo T-Watch 2019 has touchscreen"
+    config TWATCH_MODEL_2019_NO_TP
+        bool "LilyGo T-Watch 2019 no touchscreen"
+    config TWATCH_MODEL_2019_BLOCK
+        bool "LilyGo T-Watch 2019 T-Block"
+    config TWATCH_MODEL_2020_V1
+        bool "LilyGo T-Watch 2020 V1"
+    config TWATCH_MODEL_2020_V2
+        bool "LilyGo T-Watch 2020 V2"
+    endchoice
+endmenu
+
+
 menu "MicroPython"
     config MICROPY_HW_BOARD_NAME
         string "Board name"

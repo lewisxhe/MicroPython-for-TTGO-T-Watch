@@ -27,7 +27,7 @@
  *  Author: LoBo (loboris@gmail.com, loboris.github)
  *
  *  Module supporting SPI TFT displays based on ILI9341 & ILI9488 controllers
- * 
+ *
  * HIGH SPEED LOW LEVEL DISPLAY FUNCTIONS
  * USING DIRECT or DMA SPI TRANSFER MODEs
  *
@@ -46,6 +46,8 @@
 #include "soc/spi_reg.h"
 #include "esp_log.h"
 
+
+#define CGRAM_OFFSET
 
 // ====================================================
 // ==== Global variables, default values ==============
@@ -76,6 +78,8 @@ uint32_t spi_speed = 10000000;
 static color_t *trans_cline = NULL;
 static const char TAG[] = "[TFTSPI]";
 static uint8_t invertrot = 0;
+static uint16_t colstart = 0;
+static uint16_t rowstart = 0;
 
 uint8_t spibus_is_init = 0;
 
@@ -115,13 +119,13 @@ VS coding: VS[0-11] VS[0-10] VS[0-01] VS[0-00]
 */
 //                                   ---                                             VS                                             ----  ----           TP                            ----
 //uint8_t LUTDefault_full[31] = {0x32, 0x02,0x02,0x01,0x11,0x12,0x12,0x22,0x22,0x66,0x69,0x69,0x59,0x58,0x99,0x99,0x88,0x00,0x00,0x00,0x00, 0xF8,0xB4,0x13,0x51,0x35,0x51,0x51,0x19,0x01,0x00};
-uint8_t LUTDefault_full[31] = {0x32, 0x11,0x11,0x10,0x02,0x02,0x22,0x22,0x22,0x22,0x22,0x51,0x51,0x55,0x88,0x08,0x08,0x88,0x88,0x00,0x00, 0x34,0x23,0x12,0x21,0x24,0x28,0x22,0x21,0xA1,0x01};
-uint8_t LUTDefault_part[31] = {0x32, 0x10,0x18,0x18,0x08,0x18,0x18,0x08,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0x13,0x14,0x44,0x12,0x00,0x00,0x00,0x00,0x00,0x00};
-uint8_t LUT_gs[31]          = {0x32, 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-uint8_t LUTFastest[31]      = {0x32, 0x99,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0x0f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+uint8_t LUTDefault_full[31] = {0x32, 0x11, 0x11, 0x10, 0x02, 0x02, 0x22, 0x22, 0x22, 0x22, 0x22, 0x51, 0x51, 0x55, 0x88, 0x08, 0x08, 0x88, 0x88, 0x00, 0x00, 0x34, 0x23, 0x12, 0x21, 0x24, 0x28, 0x22, 0x21, 0xA1, 0x01};
+uint8_t LUTDefault_part[31] = {0x32, 0x10, 0x18, 0x18, 0x08, 0x18, 0x18, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x14, 0x44, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+uint8_t LUT_gs[31]          = {0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+uint8_t LUTFastest[31]      = {0x32, 0x99, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-uint8_t lvl_buf[16] = {32,70,110,150,185,210,220,225,230,235,240,243,248,251,253,255};
-uint8_t lvl_buf_jpg[16] = {4,8,12,16,22,30,40,60,80,110,140,180,220,240,250,255};
+uint8_t lvl_buf[16] = {32, 70, 110, 150, 185, 210, 220, 225, 230, 235, 240, 243, 248, 251, 253, 255};
+uint8_t lvl_buf_jpg[16] = {4, 8, 12, 16, 22, 30, 40, 60, 80, 110, 140, 180, 220, 240, 250, 255};
 
 #endif
 
@@ -130,22 +134,22 @@ uint8_t lvl_buf_jpg[16] = {4,8,12,16,22,30,40,60,80,110,140,180,220,240,250,255}
 //---------------------
 esp_err_t disp_select()
 {
-	//wait_trans_finish(1);
-	return spi_device_select(disp_spi, 0);
+    //wait_trans_finish(1);
+    return spi_device_select(disp_spi, 0);
 }
 
 //-----------------------
 esp_err_t disp_deselect()
 {
-	//wait_trans_finish(1);
-	return spi_device_deselect(disp_spi);
+    //wait_trans_finish(1);
+    return spi_device_deselect(disp_spi);
 }
 
 // Send command with data to display, display must be selected
 //----------------------------------------------------------------------
 void disp_spi_transfer_cmd_data(int8_t cmd, uint8_t *data, uint32_t len)
 {
-	while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
+    while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
 
     // Set DC to 0 (command mode);
     gpio_set_level(disp_spi->dc, 0);
@@ -153,40 +157,40 @@ void disp_spi_transfer_cmd_data(int8_t cmd, uint8_t *data, uint32_t len)
     disp_spi->handle->host->hw->data_buf[0] = (uint32_t)cmd;
     _spi_transfer_start(disp_spi, 8, 0);
 
-	if ((len == 0) || (data == NULL)) return;
+    if ((len == 0) || (data == NULL)) return;
 
-	while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
+    while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
     // Set DC to 1 (data mode);
-	gpio_set_level(disp_spi->dc, 1);
+    gpio_set_level(disp_spi->dc, 1);
 
-	uint8_t idx=0, bidx=0;
-	uint32_t bits=0;
-	uint32_t count=0;
-	uint32_t wd = 0;
-	while (count < len) {
-		// get data byte from buffer, fill spi buffer
-		wd |= (uint32_t)data[count] << bidx;
-    	count++;
-    	bits += 8;
-		bidx += 8;
-    	if (count == len) {
-    		disp_spi->handle->host->hw->data_buf[idx] = wd;
-    		break;
-    	}
-		if (bidx == 32) {
-			disp_spi->handle->host->hw->data_buf[idx] = wd;
-			idx++;
-			bidx = 0;
-			wd = 0;
-		}
-    	if (idx == 16) {
-    		// SPI buffer full, send data
-			_spi_transfer_start(disp_spi, bits, 0);
-    		
-			bits = 0;
-    		idx = 0;
-			bidx = 0;
-    	}
+    uint8_t idx = 0, bidx = 0;
+    uint32_t bits = 0;
+    uint32_t count = 0;
+    uint32_t wd = 0;
+    while (count < len) {
+        // get data byte from buffer, fill spi buffer
+        wd |= (uint32_t)data[count] << bidx;
+        count++;
+        bits += 8;
+        bidx += 8;
+        if (count == len) {
+            disp_spi->handle->host->hw->data_buf[idx] = wd;
+            break;
+        }
+        if (bidx == 32) {
+            disp_spi->handle->host->hw->data_buf[idx] = wd;
+            idx++;
+            bidx = 0;
+            wd = 0;
+        }
+        if (idx == 16) {
+            // SPI buffer full, send data
+            _spi_transfer_start(disp_spi, bits, 0);
+
+            bits = 0;
+            idx = 0;
+            bidx = 0;
+        }
     }
     if (bits > 0) _spi_transfer_start(disp_spi, bits, 0);
 }
@@ -195,9 +199,9 @@ void disp_spi_transfer_cmd_data(int8_t cmd, uint8_t *data, uint32_t len)
 //------------------------------------
 void disp_spi_transfer_cmd(int8_t cmd)
 {
-	while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
+    while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
 
-	// Set DC to 0 (command mode);
+    // Set DC to 0 (command mode);
     gpio_set_level(disp_spi->dc, 0);
 
     disp_spi->handle->host->hw->data_buf[0] = (uint32_t)cmd;
@@ -206,31 +210,40 @@ void disp_spi_transfer_cmd(int8_t cmd)
 
 // Set the address window for display write & read commands, display must be selected
 //-----------------------------------------------------------------------------------------
-static void disp_spi_transfer_addrwin(uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2) {
-	uint32_t wd;
+static void disp_spi_transfer_addrwin(uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2)
+{
+    uint32_t wd;
 
-	disp_spi_transfer_cmd(TFT_CASET);
+    disp_spi_transfer_cmd(TFT_CASET);
 
-	wd = (uint32_t)(x1 >> 8);
-	wd |= (uint32_t)(x1 & 0xff) << 8;
-	wd |= (uint32_t)(x2 >> 8) << 16;
-	wd |= (uint32_t)(x2 & 0xff) << 24;
+#ifdef CGRAM_OFFSET
+    x1 += colstart;
+    x2 += colstart;
+    y1 += rowstart;
+    y2 += rowstart;
+#endif
 
-	while (disp_spi->handle->host->hw->cmd.usr); // wait transfer end
-	gpio_set_level(disp_spi->dc, 1);
-	disp_spi->handle->host->hw->data_buf[0] = wd;
+
+    wd = (uint32_t)(x1 >> 8);
+    wd |= (uint32_t)(x1 & 0xff) << 8;
+    wd |= (uint32_t)(x2 >> 8) << 16;
+    wd |= (uint32_t)(x2 & 0xff) << 24;
+
+    while (disp_spi->handle->host->hw->cmd.usr); // wait transfer end
+    gpio_set_level(disp_spi->dc, 1);
+    disp_spi->handle->host->hw->data_buf[0] = wd;
     _spi_transfer_start(disp_spi, 32, 0);
 
-	disp_spi_transfer_cmd(TFT_PASET);
+    disp_spi_transfer_cmd(TFT_PASET);
 
-	wd = (uint32_t)(y1 >> 8);
-	wd |= (uint32_t)(y1 & 0xff) << 8;
-	wd |= (uint32_t)(y2 >> 8) << 16;
-	wd |= (uint32_t)(y2 & 0xff) << 24;
+    wd = (uint32_t)(y1 >> 8);
+    wd |= (uint32_t)(y1 & 0xff) << 8;
+    wd |= (uint32_t)(y2 >> 8) << 16;
+    wd |= (uint32_t)(y2 & 0xff) << 24;
 
-	while (disp_spi->handle->host->hw->cmd.usr); // wait transfer end
-	gpio_set_level(disp_spi->dc, 1);
-	disp_spi->handle->host->hw->data_buf[0] = wd;
+    while (disp_spi->handle->host->hw->cmd.usr); // wait transfer end
+    gpio_set_level(disp_spi->dc, 1);
+    disp_spi->handle->host->hw->data_buf[0] = wd;
     _spi_transfer_start(disp_spi, 32, 0);
 }
 
@@ -238,7 +251,7 @@ static void disp_spi_transfer_addrwin(uint16_t x1, uint16_t x2, uint16_t y1, uin
 //------------------------------------
 static color_t color2gs(color_t color)
 {
-	color_t _color;
+    color_t _color;
     float gs_clr = GS_FACT_R * color.r + GS_FACT_G * color.g + GS_FACT_B * color.b;
     if (gs_clr > 255) gs_clr = 255;
 
@@ -253,22 +266,22 @@ static color_t color2gs(color_t color)
 //------------------------------------
 static uint16_t color16(color_t color)
 {
-	uint16_t _color;
-	_color = (uint16_t)(color.r & 0xF8) << 8;
-	_color |= (uint16_t)(color.g & 0xFC) << 3;
-	_color |= (uint16_t)(color.b & 0xF8) >> 3;
+    uint16_t _color;
+    _color = (uint16_t)(color.r & 0xF8) << 8;
+    _color |= (uint16_t)(color.g & 0xFC) << 3;
+    _color |= (uint16_t)(color.b & 0xF8) >> 3;
     return _color;
 }
 
 //============================================
 esp_err_t wait_trans_finish(uint8_t free_line)
 {
-	_wait_trans_finish(disp_spi);
+    _wait_trans_finish(disp_spi);
 
-	if ((free_line) && (trans_cline)) {
-		free(trans_cline);
-		trans_cline = NULL;
-	}
+    if ((free_line) && (trans_cline)) {
+        free(trans_cline);
+        trans_cline = NULL;
+    }
     return ESP_OK;
 }
 
@@ -276,103 +289,101 @@ esp_err_t wait_trans_finish(uint8_t free_line)
 //==============================================================
 void drawPixel(int16_t x, int16_t y, color_t color, uint8_t sel)
 {
-	if ((sel) && (disp_select() != ESP_OK)) return;
+    if ((sel) && (disp_select() != ESP_OK)) return;
 
-	uint32_t wd = 0;
+    uint32_t wd = 0;
     color_t _color = color;
-	if (gray_scale) _color = color2gs(color);
+    if (gray_scale) _color = color2gs(color);
 
-	wait_trans_finish(1);
-	disp_spi_transfer_addrwin(x, x+1, y, y+1);
+    wait_trans_finish(1);
+    disp_spi_transfer_addrwin(x, x + 1, y, y + 1);
 
-	// Send RAM WRITE command
-	disp_spi_transfer_cmd(TFT_RAMWR);
+    // Send RAM WRITE command
+    disp_spi_transfer_cmd(TFT_RAMWR);
 
-	if (bits_per_color == 16) {
-		uint16_t _color16 = color16(_color);
-		wd = (uint32_t)(_color16 >> 8);
-		wd |= (uint32_t)(_color16 & 0xFF) << 8;
-	}
-	else {
-		wd = (uint32_t)_color.r;
-		wd |= (uint32_t)_color.g << 8;
-		wd |= (uint32_t)_color.b << 16;
-	}
-	while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
+    if (bits_per_color == 16) {
+        uint16_t _color16 = color16(_color);
+        wd = (uint32_t)(_color16 >> 8);
+        wd |= (uint32_t)(_color16 & 0xFF) << 8;
+    } else {
+        wd = (uint32_t)_color.r;
+        wd |= (uint32_t)_color.g << 8;
+        wd |= (uint32_t)_color.b << 16;
+    }
+    while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
     // Set DC to 1 (data mode);
-	gpio_set_level(disp_spi->dc, 1);
-	disp_spi->handle->host->hw->data_buf[0] = wd;
+    gpio_set_level(disp_spi->dc, 1);
+    disp_spi->handle->host->hw->data_buf[0] = wd;
     _spi_transfer_start(disp_spi, bits_per_color, 0);
 
-	if (sel) disp_deselect();
+    if (sel) disp_deselect();
 }
 
 // Send colors from color buffer directly, maximum of 512 bits
 //-----------------------------------------------------------------
 static void _direct_send(color_t *color, uint32_t len, uint8_t rep)
 {
-	uint32_t cidx = 0;	// color buffer index
-	uint32_t wd = 0;
-	uint16_t _color16 = 0;
-	int idx = 0;
-	int bits = 0;
-	int wbits = 0;
+    uint32_t cidx = 0;  // color buffer index
+    uint32_t wd = 0;
+    uint16_t _color16 = 0;
+    int idx = 0;
+    int bits = 0;
+    int wbits = 0;
 
-	// Get first color data from color buffer (repeat color)
-	color_t _color = color[0];
-	if ((rep) && (gray_scale)) _color = color2gs(color[0]);
-	if (bits_per_color == 16) _color16 = color16(_color);
+    // Get first color data from color buffer (repeat color)
+    color_t _color = color[0];
+    if ((rep) && (gray_scale)) _color = color2gs(color[0]);
+    if (bits_per_color == 16) _color16 = color16(_color);
 
-	while (len) {
-		if (rep == 0) {
-			// Get color data from color buffer
-			if (gray_scale) _color = color2gs(color[cidx]);
-			else _color = color[cidx];
-			if (bits_per_color == 16) _color16 = color16(_color);
-		}
+    while (len) {
+        if (rep == 0) {
+            // Get color data from color buffer
+            if (gray_scale) _color = color2gs(color[cidx]);
+            else _color = color[cidx];
+            if (bits_per_color == 16) _color16 = color16(_color);
+        }
 
-		if (bits_per_color == 16) {
-			wd |= (uint32_t)(_color16 >> 8) << wbits;
-			wbits += 8;
-			wd |= (uint32_t)(_color16 & 0xFF) << wbits;
-			wbits += 8;
-			if (wbits == 32) {
-				bits += wbits;
-				wbits = 0;
-				disp_spi->handle->host->hw->data_buf[idx++] = wd;
-				wd = 0;
-			}
-		}
-		else {
-			wd |= (uint32_t)_color.r << wbits;
-			wbits += 8;
-			if (wbits == 32) {
-				bits += wbits;
-				wbits = 0;
-				disp_spi->handle->host->hw->data_buf[idx++] = wd;
-				wd = 0;
-			}
-			wd |= (uint32_t)_color.g << wbits;
-			wbits += 8;
-			if (wbits == 32) {
-				bits += wbits;
-				wbits = 0;
-				disp_spi->handle->host->hw->data_buf[idx++] = wd;
-				wd = 0;
-			}
-			wd |= (uint32_t)_color.b << wbits;
-			wbits += 8;
-			if (wbits == 32) {
-				bits += wbits;
-				wbits = 0;
-				disp_spi->handle->host->hw->data_buf[idx++] = wd;
-				wd = 0;
-			}
-		}
-    	len--;	// Decrement colors counter
-        cidx++;	// increment color buffer index (used only if not repeating color)
+        if (bits_per_color == 16) {
+            wd |= (uint32_t)(_color16 >> 8) << wbits;
+            wbits += 8;
+            wd |= (uint32_t)(_color16 & 0xFF) << wbits;
+            wbits += 8;
+            if (wbits == 32) {
+                bits += wbits;
+                wbits = 0;
+                disp_spi->handle->host->hw->data_buf[idx++] = wd;
+                wd = 0;
+            }
+        } else {
+            wd |= (uint32_t)_color.r << wbits;
+            wbits += 8;
+            if (wbits == 32) {
+                bits += wbits;
+                wbits = 0;
+                disp_spi->handle->host->hw->data_buf[idx++] = wd;
+                wd = 0;
+            }
+            wd |= (uint32_t)_color.g << wbits;
+            wbits += 8;
+            if (wbits == 32) {
+                bits += wbits;
+                wbits = 0;
+                disp_spi->handle->host->hw->data_buf[idx++] = wd;
+                wd = 0;
+            }
+            wd |= (uint32_t)_color.b << wbits;
+            wbits += 8;
+            if (wbits == 32) {
+                bits += wbits;
+                wbits = 0;
+                disp_spi->handle->host->hw->data_buf[idx++] = wd;
+                wd = 0;
+            }
+        }
+        len--;  // Decrement colors counter
+        cidx++; // increment color buffer index (used only if not repeating color)
     }
-	if (bits) _spi_transfer_start(disp_spi, bits, 0);
+    if (bits) _spi_transfer_start(disp_spi, bits, 0);
 }
 
 // ==================================================================
@@ -384,105 +395,100 @@ static void _direct_send(color_t *color, uint32_t len, uint8_t rep)
 //------------------------------------------------------------------------------------
 static void _TFT_pushColorRep(color_t *color, uint32_t len, uint8_t rep, uint8_t wait)
 {
-	if (len == 0) return;
+    if (len == 0) return;
 
-	// Send RAM WRITE command
-	disp_spi_transfer_cmd(TFT_RAMWR);
-	while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
+    // Send RAM WRITE command
+    disp_spi_transfer_cmd(TFT_RAMWR);
+    while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
 
-	gpio_set_level(disp_spi->dc, 1); // Set DC to 1 (data mode);
+    gpio_set_level(disp_spi->dc, 1); // Set DC to 1 (data mode);
 
-	if ((len * bits_per_color) <= 512) {
-		// --- up to 512 bits, send directly ---
-		_direct_send(color, len, rep);
-	}
-	else if (rep == 0)  {
-		// --- more than 512 bits, no repeat: use DMA transfer ---
-		if (trans_cline) return;
-		int buflen = ((len * bits_per_color) + 31) / 8;
-		trans_cline = heap_caps_malloc(buflen, MALLOC_CAP_DMA);
-		if (trans_cline == NULL) return;
+    if ((len * bits_per_color) <= 512) {
+        // --- up to 512 bits, send directly ---
+        _direct_send(color, len, rep);
+    } else if (rep == 0)  {
+        // --- more than 512 bits, no repeat: use DMA transfer ---
+        if (trans_cline) return;
+        int buflen = ((len * bits_per_color) + 31) / 8;
+        trans_cline = heap_caps_malloc(buflen, MALLOC_CAP_DMA);
+        if (trans_cline == NULL) return;
 
-		// ** Prepare data
-		if ((!gray_scale) && (bits_per_color != 16)) {
-			memcpy(trans_cline, color, len*(bits_per_color/8));
-		}
-		else {
-			color_t _color;
-			uint16_t _color16;
-			uint8_t *trans_cline16 = (uint8_t *)trans_cline;
-			for (int n=0; n<len; n++) {
-				if (gray_scale) _color = color2gs(color[n]);
-				else _color = color[n];
-				if (bits_per_color == 16) {
-					_color16 = color16(_color);
-					trans_cline16[n*2] = (uint8_t)(_color16 >> 8);
-					trans_cline16[(n*2)+1] = (uint8_t)(_color16 & 0xFF);
-				}
-				else trans_cline[n] = _color;
-			}
-		}
-	    _dma_send(disp_spi, (uint8_t *)trans_cline, len * (bits_per_color/8));
-	}
-	else {
-		// --- more than 512 bits, repeat color ---
-		if (trans_cline) return;
-		color_t _color;
-		uint16_t  _color16 = 0;
-		uint8_t *trans_cline16 = NULL;
-		uint32_t buf_colors;
-		int buf_bytes, to_send;
+        // ** Prepare data
+        if ((!gray_scale) && (bits_per_color != 16)) {
+            memcpy(trans_cline, color, len * (bits_per_color / 8));
+        } else {
+            color_t _color;
+            uint16_t _color16;
+            uint8_t *trans_cline16 = (uint8_t *)trans_cline;
+            for (int n = 0; n < len; n++) {
+                if (gray_scale) _color = color2gs(color[n]);
+                else _color = color[n];
+                if (bits_per_color == 16) {
+                    _color16 = color16(_color);
+                    trans_cline16[n * 2] = (uint8_t)(_color16 >> 8);
+                    trans_cline16[(n * 2) + 1] = (uint8_t)(_color16 & 0xFF);
+                } else trans_cline[n] = _color;
+            }
+        }
+        _dma_send(disp_spi, (uint8_t *)trans_cline, len * (bits_per_color / 8));
+    } else {
+        // --- more than 512 bits, repeat color ---
+        if (trans_cline) return;
+        color_t _color;
+        uint16_t  _color16 = 0;
+        uint8_t *trans_cline16 = NULL;
+        uint32_t buf_colors;
+        int buf_bytes, to_send;
 
-		// Prepare color buffer of maximum 2 lines
-		buf_colors = ((len > (_width*2)) ? (_width*2) : len);
-		buf_bytes = buf_colors * (bits_per_color / 8);
-		int buflen = ((buf_bytes*8) + 31) / 8;
+        // Prepare color buffer of maximum 2 lines
+        buf_colors = ((len > (_width * 2)) ? (_width * 2) : len);
+        buf_bytes = buf_colors * (bits_per_color / 8);
+        int buflen = ((buf_bytes * 8) + 31) / 8;
 
-		trans_cline = heap_caps_malloc(buflen, MALLOC_CAP_DMA);
-		if (trans_cline == NULL) return;
+        trans_cline = heap_caps_malloc(buflen, MALLOC_CAP_DMA);
+        if (trans_cline == NULL) return;
 
-		// Prepare fill color
-		if (gray_scale) _color = color2gs(color[0]);
-		else _color = color[0];
-		if (bits_per_color == 16) {
-			_color16 = color16(_color);
-			trans_cline16 = (uint8_t *)trans_cline;
-		}
-		// Fill color buffer with fill color
-		for (uint32_t i=0; i<buf_colors; i++) {
-			if (bits_per_color == 16) {
-				trans_cline16[i*2] = (uint8_t)(_color16 >> 8);
-				trans_cline16[(i*2)+1] = (uint8_t)(_color16 & 0xFF);
-			}
-			else trans_cline[i] = _color;
-		}
+        // Prepare fill color
+        if (gray_scale) _color = color2gs(color[0]);
+        else _color = color[0];
+        if (bits_per_color == 16) {
+            _color16 = color16(_color);
+            trans_cline16 = (uint8_t *)trans_cline;
+        }
+        // Fill color buffer with fill color
+        for (uint32_t i = 0; i < buf_colors; i++) {
+            if (bits_per_color == 16) {
+                trans_cline16[i * 2] = (uint8_t)(_color16 >> 8);
+                trans_cline16[(i * 2) + 1] = (uint8_t)(_color16 & 0xFF);
+            } else trans_cline[i] = _color;
+        }
 
-		// Send 'len' colors
-		to_send = len;
-		while (to_send > 0) {
-			wait_trans_finish(0);
-			_dma_send(disp_spi, (uint8_t *)trans_cline, ((to_send > buf_colors) ? buf_bytes : (to_send * (bits_per_color/8))));
-			to_send -= buf_colors;
-		}
-	}
+        // Send 'len' colors
+        to_send = len;
+        while (to_send > 0) {
+            wait_trans_finish(0);
+            _dma_send(disp_spi, (uint8_t *)trans_cline, ((to_send > buf_colors) ? buf_bytes : (to_send * (bits_per_color / 8))));
+            to_send -= buf_colors;
+        }
+    }
 
-	if (wait) wait_trans_finish(1);
+    if (wait) wait_trans_finish(1);
 }
 
 // Write 'len' color data to TFT 'window' (x1,y2),(x2,y2)
 //================================================================================
 void TFT_pushColorRep(int x1, int y1, int x2, int y2, color_t color, uint32_t len)
 {
-	wait_trans_finish(1);
-	if (disp_select() != ESP_OK) return;
+    wait_trans_finish(1);
+    if (disp_select() != ESP_OK) return;
 
-	// ** Send address window **
-	disp_spi_transfer_addrwin(x1, x2, y1, y2);
+    // ** Send address window **
+    disp_spi_transfer_addrwin(x1, x2, y1, y2);
 
-	// Send repeated color and wait for all data sent
-	_TFT_pushColorRep(&color, len, 1, 1);
+    // Send repeated color and wait for all data sent
+    _TFT_pushColorRep(&color, len, 1, 1);
 
-	disp_deselect();
+    disp_deselect();
 }
 
 // Write 'len' color data to TFT 'window' (x1,y2),(x2,y2) from given buffer
@@ -490,35 +496,35 @@ void TFT_pushColorRep(int x1, int y1, int x2, int y2, color_t color, uint32_t le
 //======================================================================================
 void send_data(int x1, int y1, int x2, int y2, uint32_t len, color_t *buf, uint8_t wait)
 {
-	wait_trans_finish(1);
-	// ** Send address window **
-	disp_spi_transfer_addrwin(x1, x2, y1, y2);
+    wait_trans_finish(1);
+    // ** Send address window **
+    disp_spi_transfer_addrwin(x1, x2, y1, y2);
 
-	// Send color buffer
-	_TFT_pushColorRep(buf, len, 0, wait);
+    // Send color buffer
+    _TFT_pushColorRep(buf, len, 0, wait);
 }
 
 //=========================================
 uint32_t read_cmd(uint8_t cmd, uint8_t len)
 {
-	if (disp_select() != ESP_OK) return -2;
+    if (disp_select() != ESP_OK) return -2;
 
-	// Send command command
-	disp_spi_transfer_cmd(cmd);
+    // Send command command
+    disp_spi_transfer_cmd(cmd);
 
-	while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
+    while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
 
-	// Read data;
-	gpio_set_level(disp_spi->dc, 1);
+    // Read data;
+    gpio_set_level(disp_spi->dc, 1);
     disp_spi->handle->host->hw->data_buf[0] = 0xFFFFFFFF;
 
-    _spi_transfer_start(disp_spi, 0, len*8);
-	while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
+    _spi_transfer_start(disp_spi, 0, len * 8);
+    while (disp_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
 
-	uint32_t res = disp_spi->handle->host->hw->data_buf[0];
+    uint32_t res = disp_spi->handle->host->hw->data_buf[0];
 
-	disp_deselect();
-	return res;
+    disp_deselect();
+    return res;
 }
 
 // Reads 'len' pixels/colors from the TFT's GRAM 'window'
@@ -527,40 +533,40 @@ uint32_t read_cmd(uint8_t cmd, uint8_t len)
 //==================================================================================
 int read_data(int x1, int y1, int x2, int y2, int len, uint8_t *buf, uint8_t set_sp)
 {
-	spi_transaction_t t;
-	uint32_t current_clock = 0;
+    spi_transaction_t t;
+    uint32_t current_clock = 0;
 
     memset(&t, 0, sizeof(t));  //Zero out the transaction
-	memset(buf, 0, len*sizeof(color_t));
+    memset(buf, 0, len * sizeof(color_t));
 
-	if (set_sp) {
-		if (disp_deselect() != ESP_OK) return -1;
-		// Change spi clock if needed
-		current_clock = spi_get_speed(disp_spi);
-		if (max_rdclock < current_clock) spi_set_speed(disp_spi, max_rdclock);
-	}
+    if (set_sp) {
+        if (disp_deselect() != ESP_OK) return -1;
+        // Change spi clock if needed
+        current_clock = spi_get_speed(disp_spi);
+        if (max_rdclock < current_clock) spi_set_speed(disp_spi, max_rdclock);
+    }
 
-	if (disp_select() != ESP_OK) return -2;
+    if (disp_select() != ESP_OK) return -2;
 
-	// ** Send address window **
-	disp_spi_transfer_addrwin(x1, x2, y1, y2);
+    // ** Send address window **
+    disp_spi_transfer_addrwin(x1, x2, y1, y2);
 
     // ** GET pixels/colors **
-	disp_spi_transfer_cmd(TFT_RAMRD);
+    disp_spi_transfer_cmd(TFT_RAMRD);
 
-    t.length = 0;					//Send nothing
+    t.length = 0;                   //Send nothing
     t.tx_buffer = NULL;
-    t.rxlength = 8 * ((len*3)+1);	//Receive size in bits
+    t.rxlength = 8 * ((len * 3) + 1); //Receive size in bits
     t.rx_buffer = buf;
 
-	esp_err_t res = spi_transfer_data_nodma(disp_spi, &t); // Receive using direct mode
+    esp_err_t res = spi_transfer_data_nodma(disp_spi, &t); // Receive using direct mode
 
-	disp_deselect();
+    disp_deselect();
 
-	if (set_sp) {
-		// Restore spi clock if needed
-		if (max_rdclock < current_clock) spi_set_speed(disp_spi, current_clock);
-	}
+    if (set_sp) {
+        // Restore spi clock if needed
+        if (max_rdclock < current_clock) spi_set_speed(disp_spi, current_clock);
+    }
 
     return res;
 }
@@ -569,15 +575,15 @@ int read_data(int x1, int y1, int x2, int y2, int len, uint8_t *buf, uint8_t set
 //=====================================
 color_t readPixel(int16_t x, int16_t y)
 {
-    uint8_t color_buf[sizeof(color_t)+1] = {0};
+    uint8_t color_buf[sizeof(color_t) +1] = {0};
 
-    read_data(x, y, x+1, y+1, 1, color_buf, 1);
+    read_data(x, y, x + 1, y + 1, 1, color_buf, 1);
 
     color_t color;
-	color.r = color_buf[1];
-	color.g = color_buf[2];
-	color.b = color_buf[3];
-	return color;
+    color.r = color_buf[1];
+    color.g = color_buf[2];
+    color.b = color_buf[3];
+    return color;
 }
 
 // get 16-bit data from touch controller for specified type
@@ -585,15 +591,15 @@ color_t readPixel(int16_t x, int16_t y)
 //==============================
 int touch_get_data(uint8_t type)
 {
-	/*
-	while (ts_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
+    /*
+    while (ts_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
 
     ts_spi->handle->host->hw->data_buf[0] = type;
     _spi_transfer_start(ts_spi, 24, 24);
     uint16_t res = (uint16_t)(ts_spi->handle->host->hw->data_buf[0] >> 8);
-	while (ts_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
-	*/
-	spi_transaction_t t;
+    while (ts_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
+    */
+    spi_transaction_t t;
     memset(&t, 0, sizeof(t));  //Zero out the transaction
 
     uint32_t buf = type;
@@ -601,8 +607,8 @@ int touch_get_data(uint8_t type)
     t.tx_buffer = (uint8_t *)&buf;
     t.rxlength = 24;
     t.rx_buffer = (uint8_t *)&buf;
-	esp_err_t ret = spi_transfer_data_nodma(ts_spi, &t);
-	if (ret != ESP_OK) return 0;
+    esp_err_t ret = spi_transfer_data_nodma(ts_spi, &t);
+    if (ret != ESP_OK) return 0;
 
     uint16_t res = (uint16_t)(buf >> 8);
 
@@ -617,20 +623,20 @@ int touch_get_data(uint8_t type)
 //------------------------------------------------------
 static void stmpe610_write_reg(uint8_t reg, uint8_t val)
 {
-	spi_device_select(ts_spi, 0);
+    spi_device_select(ts_spi, 0);
     ts_spi->handle->host->hw->data_buf[0] = (val << 8) | reg;
     _spi_transfer_start(ts_spi, 16, 16);
-	while (ts_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
+    while (ts_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
     spi_device_deselect(ts_spi);
 }
 
 //--------------------------------------------
 static uint8_t stmpe610_read_byte(uint8_t reg)
 {
-	spi_device_select(ts_spi, 0);
+    spi_device_select(ts_spi, 0);
     ts_spi->handle->host->hw->data_buf[0] = (reg << 8) | (reg | 0x80);
     _spi_transfer_start(ts_spi, 24, 24);
-	while (ts_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
+    while (ts_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
     uint8_t res = (uint8_t)(ts_spi->handle->host->hw->data_buf[0] >> 8);
     spi_device_deselect(ts_spi);
     return res;
@@ -639,10 +645,10 @@ static uint8_t stmpe610_read_byte(uint8_t reg)
 //---------------------------------------------
 static uint16_t stmpe610_read_word(uint8_t reg)
 {
-	spi_device_select(ts_spi, 0);
-    ts_spi->handle->host->hw->data_buf[0] = ((((reg+1) << 8) | ((reg+1) | 0x80)) << 16) | (reg << 8) | (reg | 0x80);
+    spi_device_select(ts_spi, 0);
+    ts_spi->handle->host->hw->data_buf[0] = ((((reg + 1) << 8) | ((reg + 1) | 0x80)) << 16) | (reg << 8) | (reg | 0x80);
     _spi_transfer_start(ts_spi, 32, 32);
-	while (ts_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
+    while (ts_spi->handle->host->hw->cmd.usr); // Wait for SPI bus ready
     uint16_t res = (uint16_t)(ts_spi->handle->host->hw->data_buf[0] & 0xFF00);
     res |= (uint16_t)(ts_spi->handle->host->hw->data_buf[0] >> 24);
     spi_device_deselect(ts_spi);
@@ -661,7 +667,7 @@ uint32_t stmpe610_getID()
 //==================
 void stmpe610_Init()
 {
-	/*
+    /*
     stmpe610_write_reg(STMPE610_REG_SYS_CTRL1, 0x02);        // Software chip reset
     vTaskDelay(10 / portTICK_RATE_MS);
 
@@ -685,22 +691,22 @@ void stmpe610_Init()
     stmpe610_write_reg(STMPE610_REG_INT_CTRL, 0x00);         // Level interrupt, disable interrupts
     */
 
-	stmpe610_write_reg(STMPE610_REG_SYS_CTRL1, 0x02);        // Software chip reset
+    stmpe610_write_reg(STMPE610_REG_SYS_CTRL1, 0x02);        // Software chip reset
     vTaskDelay(10 / portTICK_RATE_MS);
-    stmpe610_write_reg(STMPE610_REG_SYS_CTRL2, 0x0);													// turn on clocks!
+    stmpe610_write_reg(STMPE610_REG_SYS_CTRL2, 0x0);                                                    // turn on clocks!
     vTaskDelay(2 / portTICK_RATE_MS);
-    stmpe610_write_reg(STMPE610_REG_TSC_CTRL, STMPE610_REG_TSC_CTRL_XYZ | STMPE610_REG_TSC_CTRL_EN);	// XYZ and enable!
+    stmpe610_write_reg(STMPE610_REG_TSC_CTRL, STMPE610_REG_TSC_CTRL_XYZ | STMPE610_REG_TSC_CTRL_EN);    // XYZ and enable!
     stmpe610_write_reg(STMPE610_REG_INT_EN, STMPE610_REG_INT_EN_TOUCHDET);
-    stmpe610_write_reg(STMPE610_REG_ADC_CTRL1, STMPE610_REG_ADC_CTRL1_10BIT | (0x6 << 4));				// 96 clocks per conversion
+    stmpe610_write_reg(STMPE610_REG_ADC_CTRL1, STMPE610_REG_ADC_CTRL1_10BIT | (0x6 << 4));              // 96 clocks per conversion
     vTaskDelay(2 / portTICK_RATE_MS);
     stmpe610_write_reg(STMPE610_REG_ADC_CTRL2, STMPE610_REG_ADC_CTRL2_6_5MHZ);
     stmpe610_write_reg(STMPE610_REG_TSC_CFG, STMPE610_REG_TSC_CFG_4SAMPLE | STMPE610_REG_TSC_CFG_DELAY_1MS | STMPE610_REG_TSC_CFG_SETTLE_5MS);
     stmpe610_write_reg(STMPE610_REG_TSC_FRACT_XYZ, 0x6);
     stmpe610_write_reg(STMPE610_REG_FIFO_TH, 1);
     stmpe610_write_reg(STMPE610_REG_FIFO_STA, STMPE610_REG_FIFO_STA_RESET);
-    stmpe610_write_reg(STMPE610_REG_FIFO_STA, 0);														// unreset
+    stmpe610_write_reg(STMPE610_REG_FIFO_STA, 0);                                                       // unreset
     stmpe610_write_reg(STMPE610_REG_TSC_I_DRIVE, STMPE610_REG_TSC_I_DRIVE_50MA);
-    stmpe610_write_reg(STMPE610_REG_INT_STA, 0xFF);														// reset all ints
+    stmpe610_write_reg(STMPE610_REG_INT_STA, 0xFF);                                                     // reset all ints
     stmpe610_write_reg(STMPE610_REG_INT_CTRL, STMPE610_REG_INT_CTRL_POL_HIGH | STMPE610_REG_INT_CTRL_ENABLE);
 }
 
@@ -719,28 +725,28 @@ static void stmpe_readData(uint32_t *x, uint32_t *y, uint32_t *z)
     *z += data[3];
 
     if ((stmpe610_read_byte(STMPE610_REG_FIFO_STA) & STMPE610_REG_FIFO_STA_EMPTY)) {
-		stmpe610_write_reg(STMPE610_REG_INT_STA, 0xFF);  // reset all interrupts
-	}
+        stmpe610_write_reg(STMPE610_REG_INT_STA, 0xFF);  // reset all interrupts
+    }
 }
 
 //===========================================================
 int stmpe610_get_touch(uint16_t *x, uint16_t *y, uint16_t *z)
 {
-	/*
+    /*
     if (!(stmpe610_read_byte(STMPE610_REG_TSC_CTRL) & 0x80)) return 0;
 
     int n = 0;
     // Get touch data
     uint8_t fifo_size = stmpe610_read_byte(STMPE610_REG_FIFO_SIZE);
     while (fifo_size < 2) {
-    	if (!(stmpe610_read_byte(STMPE610_REG_TSC_CTRL) & 0x80)) return 0;
+        if (!(stmpe610_read_byte(STMPE610_REG_TSC_CTRL) & 0x80)) return 0;
         fifo_size = stmpe610_read_byte(STMPE610_REG_FIFO_SIZE);
         n++;
         if (n > 1000) return 0;
     }
     n = 0;
     while (fifo_size > 120) {
-    	if (!(stmpe610_read_byte(STMPE610_REG_TSC_CTRL) & 0x80)) return 0;
+        if (!(stmpe610_read_byte(STMPE610_REG_TSC_CTRL) & 0x80)) return 0;
         *x = stmpe610_read_word(STMPE610_REG_TSC_DATA_X);
         *y = stmpe610_read_word(STMPE610_REG_TSC_DATA_Y);
         *z = stmpe610_read_byte(STMPE610_REG_TSC_DATA_Z);
@@ -757,36 +763,36 @@ int stmpe610_get_touch(uint16_t *x, uint16_t *y, uint16_t *z)
     *x = 4096 - *x;
     // Clear the rest of the fifo
     //{
-    //    stmpe610_write_reg(STMPE610_REG_FIFO_STA, 0x01);		// FIFO reset enable
-    //    stmpe610_write_reg(STMPE610_REG_FIFO_STA, 0x00);		// FIFO reset disable
+    //    stmpe610_write_reg(STMPE610_REG_FIFO_STA, 0x01);      // FIFO reset enable
+    //    stmpe610_write_reg(STMPE610_REG_FIFO_STA, 0x00);      // FIFO reset disable
     //}
     */
 
-	*x = 0;
-	*y = 0;
-	*z = 0;
+    *x = 0;
+    *y = 0;
+    *z = 0;
     if (!(stmpe610_read_byte(STMPE610_REG_TSC_CTRL) & 0x80)) {
-    	// no touch data
-    	return 0;
+        // no touch data
+        return 0;
     }
 
     int n = 0;
-	uint32_t tx = 0;
-	uint32_t ty = 0;
-	uint32_t tz = 0;
-	while (!((stmpe610_read_byte(STMPE610_REG_FIFO_STA) & STMPE610_REG_FIFO_STA_EMPTY))) {
-		stmpe_readData(&tx, &ty, &tz);
-		n++;
-	}
+    uint32_t tx = 0;
+    uint32_t ty = 0;
+    uint32_t tz = 0;
+    while (!((stmpe610_read_byte(STMPE610_REG_FIFO_STA) & STMPE610_REG_FIFO_STA_EMPTY))) {
+        stmpe_readData(&tx, &ty, &tz);
+        n++;
+    }
 
-	if (n) {
-		// return the average values
-		*x = 4096 - (uint16_t)(tx / n);
-		*y = (uint16_t)(ty / n);
-		*z = (uint16_t)(tz / n);
-	}
+    if (n) {
+        // return the average values
+        *x = 4096 - (uint16_t)(tx / n);
+        *y = (uint16_t)(ty / n);
+        *z = (uint16_t)(tz / n);
+    }
 
-	return 1;
+    return 1;
 }
 
 // ==== STMPE610 ===========================================================================
@@ -797,9 +803,9 @@ int stmpe610_get_touch(uint16_t *x, uint16_t *y, uint16_t *z)
 //======================
 uint32_t find_rd_speed()
 {
-	esp_err_t ret;
-	color_t color;
-	uint32_t max_speed = 1000000;
+    esp_err_t ret;
+    color_t color;
+    uint32_t max_speed = 1000000;
     uint32_t change_speed, cur_speed;
     int line_check;
     color_t *color_line = NULL;
@@ -809,95 +815,98 @@ uint32_t find_rd_speed()
     gray_scale = 0;
     cur_speed = spi_get_speed(disp_spi);
 
-	color_line = malloc(_width*3);
+    color_line = malloc(_width * 3);
     if (color_line == NULL) goto exit;
 
-    line_rdbuf = malloc((_width*3)+1);
-	if (line_rdbuf == NULL) goto exit;
+    line_rdbuf = malloc((_width * 3) + 1);
+    if (line_rdbuf == NULL) goto exit;
 
-	color_t *rdline = (color_t *)(line_rdbuf+1);
+    color_t *rdline = (color_t *)(line_rdbuf + 1);
 
-	// Fill test line with colors
-	color = (color_t){0xE8,0xAC,0x78};
-	for (int x=0; x<_width; x++) {
-		color_line[x] = color;
-	}
+    // Fill test line with colors
+    color = (color_t) {
+        0xE8, 0xAC, 0x78
+    };
+    for (int x = 0; x < _width; x++) {
+        color_line[x] = color;
+    }
 
-	// Find maximum read spi clock
-	for (uint32_t speed=2000000; speed<=cur_speed; speed += 1000000) {
-		change_speed = spi_set_speed(disp_spi, speed);
-		if (change_speed == 0) goto exit;
+    // Find maximum read spi clock
+    for (uint32_t speed = 2000000; speed <= cur_speed; speed += 1000000) {
+        change_speed = spi_set_speed(disp_spi, speed);
+        if (change_speed == 0) goto exit;
 
-		memset(line_rdbuf, 0, _width*sizeof(color_t)+1);
+        memset(line_rdbuf, 0, _width * sizeof(color_t) +1);
 
-		if (disp_select()) goto exit;
-		// Write color line
-		send_data(0, _height/2, _width-1, _height/2, _width, color_line, 1);
-		if (disp_deselect()) goto exit;
+        if (disp_select()) goto exit;
+        // Write color line
+        send_data(0, _height / 2, _width - 1, _height / 2, _width, color_line, 1);
+        if (disp_deselect()) goto exit;
 
-		// Read color line
-		ret = read_data(0, _height/2, _width-1, _height/2, _width, line_rdbuf, 0);
+        // Read color line
+        ret = read_data(0, _height / 2, _width - 1, _height / 2, _width, line_rdbuf, 0);
 
-		// Compare
-		line_check = 0;
-		if (ret == ESP_OK) {
-			for (int y=0; y<_width; y++) {
-				if ((color_line[y].r & 0xFC) != (rdline[y].r & 0xFC)) line_check = 1;
-				else if ((color_line[y].g & 0xFC) != (rdline[y].g & 0xFC)) line_check = 1;
-				else if ((color_line[y].b & 0xFC) != (rdline[y].b & 0xFC)) line_check =  1;
-				if (line_check) break;
-			}
-		}
-		else line_check = ret;
+        // Compare
+        line_check = 0;
+        if (ret == ESP_OK) {
+            for (int y = 0; y < _width; y++) {
+                if ((color_line[y].r & 0xFC) != (rdline[y].r & 0xFC)) line_check = 1;
+                else if ((color_line[y].g & 0xFC) != (rdline[y].g & 0xFC)) line_check = 1;
+                else if ((color_line[y].b & 0xFC) != (rdline[y].b & 0xFC)) line_check =  1;
+                if (line_check) break;
+            }
+        } else line_check = ret;
 
-		if (line_check) break;
-		max_speed = speed;
-	}
+        if (line_check) break;
+        max_speed = speed;
+    }
 
 exit:
     gray_scale = gs;
-	if (line_rdbuf) free(line_rdbuf);
-	if (color_line) free(color_line);
+    if (line_rdbuf) free(line_rdbuf);
+    if (color_line) free(color_line);
 
-	// restore spi clk
-	change_speed = spi_set_speed(disp_spi, cur_speed);
+    // restore spi clk
+    change_speed = spi_set_speed(disp_spi, cur_speed);
 
-	return max_speed;
+    return max_speed;
 }
 
 //---------------------------------------------------------------------------
 // Companion code to the initialization table.
 // Reads and issues a series of LCD commands stored in byte array
 //--------------------------------------------
-static void commandList(const uint8_t *addr) {
-  uint8_t  numCommands, numArgs, cmd;
-  uint16_t ms;
+static void commandList(const uint8_t *addr)
+{
+    uint8_t  numCommands, numArgs, cmd;
+    uint16_t ms;
 
-  numCommands = *addr++;				// Number of commands to follow
-  while(numCommands--) {				// For each command...
-    cmd = *addr++;						// save command
-    numArgs  = *addr++;					// Number of args to follow
-    ms       = numArgs & TFT_CMD_DELAY;	// If high bit set, delay follows args
-    numArgs &= ~TFT_CMD_DELAY;			// Mask out delay bit
+    numCommands = *addr++;                // Number of commands to follow
+    while (numCommands--) {               // For each command...
+        cmd = *addr++;                      // save command
+        numArgs  = *addr++;                 // Number of args to follow
+        ms       = numArgs & TFT_CMD_DELAY; // If high bit set, delay follows args
+        numArgs &= ~TFT_CMD_DELAY;          // Mask out delay bit
 
-	disp_spi_transfer_cmd_data(cmd, (uint8_t *)addr, numArgs);
+        disp_spi_transfer_cmd_data(cmd, (uint8_t *)addr, numArgs);
 
-	addr += numArgs;
+        addr += numArgs;
 
-    if(ms) {
-      ms = *addr++;              // Read post-command delay time (ms)
-      if(ms == 255) ms = 500;    // If 255, delay for 500 ms
-	  vTaskDelay(ms / portTICK_RATE_MS);
+        if (ms) {
+            ms = *addr++;              // Read post-command delay time (ms)
+            if (ms == 255) ms = 500;   // If 255, delay for 500 ms
+            vTaskDelay(ms / portTICK_RATE_MS);
+        }
     }
-  }
 }
 
 //==================================
-void _tft_setRotation(uint8_t rot) {
-	uint8_t rotation = rot & 3; // can't be higher than 3
-	uint8_t send = 1;
-	uint8_t madctl = 0;
-	uint16_t tmp;
+void _tft_setRotation(uint8_t rot)
+{
+    uint8_t rotation = rot & 3; // can't be higher than 3
+    uint8_t send = 1;
+    uint8_t madctl = 0;
+    uint16_t tmp;
 
     if ((rotation & 1)) {
         // in landscape modes must be width > height
@@ -906,8 +915,7 @@ void _tft_setRotation(uint8_t rot) {
             _width  = _height;
             _height = tmp;
         }
-    }
-    else {
+    } else {
         // in portrait modes must be width < height
         if (_width > _height) {
             tmp = _width;
@@ -917,119 +925,155 @@ void _tft_setRotation(uint8_t rot) {
     }
     if (invertrot == 2) {
         switch (rotation) {
-            case PORTRAIT:
+        case PORTRAIT:
             madctl = (MADCTL_MV | TFT_RGB_BGR);
             break;
-            case LANDSCAPE:
+        case LANDSCAPE:
             madctl = (MADCTL_MX | TFT_RGB_BGR);
             break;
-            case PORTRAIT_FLIP:
+        case PORTRAIT_FLIP:
             madctl = (MADCTL_MV | TFT_RGB_BGR);
             break;
-            case LANDSCAPE_FLIP:
+        case LANDSCAPE_FLIP:
             madctl = (MADCTL_MY | TFT_RGB_BGR);
             break;
         }
-    }
-    else if (invertrot == 3) {
-        // used for M5Stack display
+    } else if (invertrot == 3) {
+        //Lilygo twatch st7789 rotation
         switch (rotation) {
-            case PORTRAIT:
-            madctl = (MADCTL_MX | MADCTL_MV | TFT_RGB_BGR);
-            break;
-            case LANDSCAPE:
+        case PORTRAIT:
+#ifdef CGRAM_OFFSET
+            if (_width == 135) {
+                colstart = 52;
+                rowstart = 40;
+            } else {
+                colstart = 0;
+                rowstart = 0;
+            }
+#endif
             madctl = (TFT_RGB_BGR);
             break;
-            case PORTRAIT_FLIP:
-            madctl = (MADCTL_MY | MADCTL_MV | TFT_RGB_BGR);
+        case LANDSCAPE:
+#ifdef CGRAM_OFFSET
+            if (_width == 135) {
+                colstart = 40;
+                rowstart = 53;
+            } else {
+                colstart = 0;
+                rowstart = 0;
+            }
+#endif
+            madctl = (MADCTL_MX | MADCTL_MV | TFT_RGB_BGR);
             break;
-            case LANDSCAPE_FLIP:
+        case PORTRAIT_FLIP:
+#ifdef CGRAM_OFFSET
+            if (_width == 135) {
+                colstart = 53;
+                rowstart = 40;
+            } else {
+                colstart = 0;
+                rowstart = 80;
+            }
+#endif
             madctl = (MADCTL_MY | MADCTL_MX | TFT_RGB_BGR);
+            break;
+        case LANDSCAPE_FLIP:
+#ifdef CGRAM_OFFSET
+            if (_width == 135) {
+                colstart = 40;
+                rowstart = 52;
+            } else {
+                colstart = 80;
+                rowstart = 0;
+            }
+#endif
+            madctl = (MADCTL_MY | MADCTL_MV | TFT_RGB_BGR);
             break;
         }
-    }
-    else if (invertrot == 1) {
+    } else if (invertrot == 1) {
         switch (rotation) {
-            case PORTRAIT:
+        case PORTRAIT:
             madctl = (MADCTL_MY | MADCTL_MX | TFT_RGB_BGR);
             break;
-            case LANDSCAPE:
+        case LANDSCAPE:
             madctl = (MADCTL_MY | MADCTL_MV | TFT_RGB_BGR);
             break;
-            case PORTRAIT_FLIP:
+        case PORTRAIT_FLIP:
             madctl = (TFT_RGB_BGR);
             break;
-            case LANDSCAPE_FLIP:
+        case LANDSCAPE_FLIP:
             madctl = (MADCTL_MX | MADCTL_MV | TFT_RGB_BGR);
             break;
         }
-    }
-    else {
+    } else {
         switch (rotation) {
-            case PORTRAIT:
+        case PORTRAIT:
             madctl = (MADCTL_MX | TFT_RGB_BGR);
             break;
-            case LANDSCAPE:
+        case LANDSCAPE:
             madctl = (MADCTL_MV | TFT_RGB_BGR);
             break;
-            case PORTRAIT_FLIP:
+        case PORTRAIT_FLIP:
             madctl = (MADCTL_MY | TFT_RGB_BGR);
             break;
-            case LANDSCAPE_FLIP:
+        case LANDSCAPE_FLIP:
             madctl = (MADCTL_MX | MADCTL_MY | MADCTL_MV | TFT_RGB_BGR);
             break;
         }
     }
-	if (send) {
-		if (disp_select() == ESP_OK) {
-			disp_spi_transfer_cmd_data(TFT_MADCTL, &madctl, 1);
-			disp_deselect();
-		}
-	}
+    if (send) {
+        if (disp_select() == ESP_OK) {
+            disp_spi_transfer_cmd_data(TFT_MADCTL, &madctl, 1);
+            disp_deselect();
+        }
+    }
 
 }
 
 //---------------------------------------
-void bcklOff(display_config_t *dconfig) {
+void bcklOff(display_config_t *dconfig)
+{
     if (dconfig->bckl >= 0) {
-		gpio_set_level(dconfig->bckl, (dconfig->bckl_on & 1) ^ 1);
+        gpio_set_level(dconfig->bckl, (dconfig->bckl_on & 1) ^ 1);
     }
 }
 
 //--------------------------------------
-void bcklOn(display_config_t *dconfig) {
+void bcklOn(display_config_t *dconfig)
+{
     if (dconfig->bckl >= 0) {
-		gpio_set_level(dconfig->bckl, dconfig->bckl_on & 1);
+        gpio_set_level(dconfig->bckl, dconfig->bckl_on & 1);
     }
 }
 
 //===========================================
-void _tft_setBitsPerColor(uint8_t bitsperc) {
-	if ((tft_disp_type != DISP_TYPE_ILI9488) && ((bitsperc == 16) || (bitsperc == 24))) {
-		uint8_t bpc = DISP_COLOR_BITS_16;
-		if (bitsperc == 24) bpc = DISP_COLOR_BITS_24;
-		if (disp_select() == ESP_OK) {
-			disp_spi_transfer_cmd_data(TFT_CMD_PIXFMT, &bpc, 1);
-			disp_deselect();
-		}
-		bits_per_color = bitsperc;
-	}
+void _tft_setBitsPerColor(uint8_t bitsperc)
+{
+    if ((tft_disp_type != DISP_TYPE_ILI9488) && ((bitsperc == 16) || (bitsperc == 24))) {
+        uint8_t bpc = DISP_COLOR_BITS_16;
+        if (bitsperc == 24) bpc = DISP_COLOR_BITS_24;
+        if (disp_select() == ESP_OK) {
+            disp_spi_transfer_cmd_data(TFT_CMD_PIXFMT, &bpc, 1);
+            disp_deselect();
+        }
+        bits_per_color = bitsperc;
+    }
 }
 
 //--------------------------------------------------------
 static void TFT_PinsInit(display_config_t *dconfig)
 {
     // Route all used pins to GPIO control
-	if (!spibus_is_init) {
-		gpio_pad_select_gpio(dconfig->miso);
-		gpio_pad_select_gpio(dconfig->mosi);
-		gpio_pad_select_gpio(dconfig->sck);
+    if (!spibus_is_init) {
+        gpio_pad_select_gpio(dconfig->miso);
+        gpio_pad_select_gpio(dconfig->mosi);
+        gpio_pad_select_gpio(dconfig->sck);
 
-		gpio_set_direction(dconfig->miso, GPIO_MODE_INPUT);
-		gpio_set_pull_mode(dconfig->miso, GPIO_PULLUP_ONLY);
-		gpio_set_direction(dconfig->mosi, GPIO_MODE_OUTPUT);
-		gpio_set_direction(dconfig->sck, GPIO_MODE_OUTPUT);
-	}
+        gpio_set_direction(dconfig->miso, GPIO_MODE_INPUT);
+        gpio_set_pull_mode(dconfig->miso, GPIO_PULLUP_ONLY);
+        gpio_set_direction(dconfig->mosi, GPIO_MODE_OUTPUT);
+        gpio_set_direction(dconfig->sck, GPIO_MODE_OUTPUT);
+    }
 
     gpio_pad_select_gpio(dconfig->cs);
     gpio_pad_select_gpio(dconfig->dc);
@@ -1040,19 +1084,19 @@ static void TFT_PinsInit(display_config_t *dconfig)
     gpio_set_level(dconfig->dc, 0);
     gpio_set_level(dconfig->cs, 1);
     if (dconfig->touch != TOUCH_TYPE_NONE) {
-		gpio_pad_select_gpio(dconfig->tcs);
-		gpio_set_direction(dconfig->tcs, GPIO_MODE_OUTPUT);
-		gpio_set_level(dconfig->tcs, 1);
+        gpio_pad_select_gpio(dconfig->tcs);
+        gpio_set_direction(dconfig->tcs, GPIO_MODE_OUTPUT);
+        gpio_set_level(dconfig->tcs, 1);
     }
     if (dconfig->bckl >= 0) {
-		gpio_pad_select_gpio(dconfig->bckl);
-		gpio_set_direction(dconfig->bckl, GPIO_MODE_OUTPUT);
-		gpio_set_level(dconfig->bckl, dconfig->bckl_on ^ 1);
+        gpio_pad_select_gpio(dconfig->bckl);
+        gpio_set_direction(dconfig->bckl, GPIO_MODE_OUTPUT);
+        gpio_set_level(dconfig->bckl, dconfig->bckl_on ^ 1);
     }
     if (dconfig->rst >= 0) {
-		gpio_pad_select_gpio(dconfig->rst);
-		gpio_set_direction(dconfig->rst, GPIO_MODE_OUTPUT);
-		gpio_set_level(dconfig->rst, 0);
+        gpio_pad_select_gpio(dconfig->rst);
+        gpio_set_direction(dconfig->rst, GPIO_MODE_OUTPUT);
+        gpio_set_level(dconfig->rst, 0);
     }
 }
 
@@ -1067,8 +1111,7 @@ static esp_err_t TFT_spiInit(display_config_t *dconfig)
         if (used_spi == VSPI_HOST) disp_spi->spihost = HSPI_HOST;
         else disp_spi->spihost = VSPI_HOST;
         ESP_LOGW(TAG, "spi bus changed (%d -> %d)", used_spi, disp_spi->spihost);
-    }
-    else disp_spi->spihost = dconfig->host;
+    } else disp_spi->spihost = dconfig->host;
 
     disp_spi->buscfg = SPIbus_configs[disp_spi->spihost];
     if (disp_spi->buscfg == NULL) {
@@ -1077,70 +1120,69 @@ static esp_err_t TFT_spiInit(display_config_t *dconfig)
     }
 
     disp_spi->dma_channel = 1;
-    disp_spi->curr_clock = 8000000;							// for initialization set the clock to 8MHz
+    disp_spi->curr_clock = 8000000;                         // for initialization set the clock to 8MHz
     disp_spi->handle = NULL;
     disp_spi->cs = dconfig->cs;
-	disp_spi->dc = dconfig->dc;
-	disp_spi->selected = 0;
+    disp_spi->dc = dconfig->dc;
+    disp_spi->selected = 0;
 
-    disp_spi->buscfg->miso_io_num = dconfig->miso;			// set SPI MISO pin
-	disp_spi->buscfg->mosi_io_num = dconfig->mosi;			// set SPI MOSI pin
-	disp_spi->buscfg->sclk_io_num = dconfig->sck;			// set SPI CLK pin
-	disp_spi->buscfg->quadwp_io_num = -1;
-	disp_spi->buscfg->quadhd_io_num = -1;
-	disp_spi->buscfg->max_transfer_sz = 6*1024;
+    disp_spi->buscfg->miso_io_num = dconfig->miso;          // set SPI MISO pin
+    disp_spi->buscfg->mosi_io_num = dconfig->mosi;          // set SPI MOSI pin
+    disp_spi->buscfg->sclk_io_num = dconfig->sck;           // set SPI CLK pin
+    disp_spi->buscfg->quadwp_io_num = -1;
+    disp_spi->buscfg->quadhd_io_num = -1;
+    disp_spi->buscfg->max_transfer_sz = 6 * 1024;
 
-	disp_spi->devcfg.clock_speed_hz = disp_spi->curr_clock; // Initial clock
-	disp_spi->devcfg.duty_cycle_pos = 128;                  // 50% duty cycle
-	disp_spi->devcfg.mode=0;                                // SPI mode 0
-	disp_spi->devcfg.spics_io_num = -1;          			// we will use external CS pin
-	disp_spi->devcfg.queue_size=1;                          // we need only one transaction
-	disp_spi->devcfg.flags=SPI_DEVICE_HALFDUPLEX;           // ALWAYS SET  to HALF DUPLEX MODE!! for display spi
+    disp_spi->devcfg.clock_speed_hz = disp_spi->curr_clock; // Initial clock
+    disp_spi->devcfg.duty_cycle_pos = 128;                  // 50% duty cycle
+    disp_spi->devcfg.mode = 0;                              // SPI mode 0
+    disp_spi->devcfg.spics_io_num = -1;                     // we will use external CS pin
+    disp_spi->devcfg.queue_size = 1;                        // we need only one transaction
+    disp_spi->devcfg.flags = SPI_DEVICE_HALFDUPLEX;         // ALWAYS SET  to HALF DUPLEX MODE!! for display spi
 
-	if (dconfig->touch != TOUCH_TYPE_NONE) {
-	    ts_spi->spihost = disp_spi->spihost;				// Use the same spi bus as display
-	    ts_spi->buscfg = SPIbus_configs[ts_spi->spihost];
+    if (dconfig->touch != TOUCH_TYPE_NONE) {
+        ts_spi->spihost = disp_spi->spihost;                // Use the same spi bus as display
+        ts_spi->buscfg = SPIbus_configs[ts_spi->spihost];
 
-	    ts_spi->dma_channel = 1;
-	    ts_spi->handle = NULL;
-		ts_spi->cs = dconfig->tcs; // external CS
-		ts_spi->dc = -1;
-		ts_spi->selected = 0;
+        ts_spi->dma_channel = 1;
+        ts_spi->handle = NULL;
+        ts_spi->cs = dconfig->tcs; // external CS
+        ts_spi->dc = -1;
+        ts_spi->selected = 0;
 
-		if (dconfig->touch == TOUCH_TYPE_STMPE610) {
-		    ts_spi->curr_clock = 1000000;
-			ts_spi->devcfg.clock_speed_hz = 1000000;   		// Clock 1 MHz
-			ts_spi->devcfg.mode = STMPE610_SPI_MODE;   		// SPI mode 1
-		}
-		else {
-		    ts_spi->curr_clock = 2500000;
-			ts_spi->devcfg.clock_speed_hz = 2500000;        // Clock 2.5 MHz
-			ts_spi->devcfg.mode = 0;                        //SPI mode 0
-		}
+        if (dconfig->touch == TOUCH_TYPE_STMPE610) {
+            ts_spi->curr_clock = 1000000;
+            ts_spi->devcfg.clock_speed_hz = 1000000;        // Clock 1 MHz
+            ts_spi->devcfg.mode = STMPE610_SPI_MODE;        // SPI mode 1
+        } else {
+            ts_spi->curr_clock = 2500000;
+            ts_spi->devcfg.clock_speed_hz = 2500000;        // Clock 2.5 MHz
+            ts_spi->devcfg.mode = 0;                        //SPI mode 0
+        }
 
-		ts_spi->devcfg.duty_cycle_pos = 128;                // 50% duty cycle
-		ts_spi->devcfg.spics_io_num = -1;					// External Touch CS pin (dconfig->tcs)
-		ts_spi->devcfg.queue_size = 1;                      // we need only one transaction
-		ts_spi->devcfg.flags = 0;
-	}
+        ts_spi->devcfg.duty_cycle_pos = 128;                // 50% duty cycle
+        ts_spi->devcfg.spics_io_num = -1;                   // External Touch CS pin (dconfig->tcs)
+        ts_spi->devcfg.queue_size = 1;                      // we need only one transaction
+        ts_spi->devcfg.flags = 0;
+    }
 
     // ==================================================================
-	// ==== Initialize the SPI bus and attach the LCD to the SPI bus ====
-	ret = add_extspi_device(disp_spi);
-	if (ret != ESP_OK) {
-	    return ret;
-	}
+    // ==== Initialize the SPI bus and attach the LCD to the SPI bus ====
+    ret = add_extspi_device(disp_spi);
+    if (ret != ESP_OK) {
+        return ret;
+    }
 
     ESP_LOGD(TAG, "spi bus configured (%d)", disp_spi->spihost);
 
 
-	// ==== Test select/deselect ====
-	ret = spi_device_select(disp_spi, 1);
+    // ==== Test select/deselect ====
+    ret = spi_device_select(disp_spi, 1);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Error selecting display device");
     }
-	vTaskDelay(10 / portTICK_RATE_MS);
-	ret = spi_device_deselect(disp_spi);
+    vTaskDelay(10 / portTICK_RATE_MS);
+    ret = spi_device_deselect(disp_spi);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Error deselecting display device");
     }
@@ -1148,39 +1190,38 @@ static esp_err_t TFT_spiInit(display_config_t *dconfig)
     ESP_LOGI(TAG, "attached display device, speed=%u", spi_get_speed(disp_spi));
     ESP_LOGI(TAG, "bus uses native pins: %s", spi_uses_native_pins(disp_spi->handle) ? "true" : "false");
 
-	if (dconfig->touch != TOUCH_TYPE_NONE) {
-		// =====================================================
-	    // ==== Attach the touch screen to the same SPI bus ====
+    if (dconfig->touch != TOUCH_TYPE_NONE) {
+        // =====================================================
+        // ==== Attach the touch screen to the same SPI bus ====
 
-		ret = add_extspi_device(ts_spi);
-	    if (ret == ESP_OK) {
-	        ESP_LOGD(TAG, "touch screen device added to spi bus (%d)", disp_spi->spihost);
+        ret = add_extspi_device(ts_spi);
+        if (ret == ESP_OK) {
+            ESP_LOGD(TAG, "touch screen device added to spi bus (%d)", disp_spi->spihost);
 
-			// ==== Test select/deselect ====
-			ret = spi_device_select(ts_spi, 1);
-		    if (ret != ESP_OK) {
-		        ESP_LOGE(TAG, "Error selecting touch device");
-		    }
-			ret = spi_device_deselect(ts_spi);
-		    if (ret != ESP_OK) {
-		        ESP_LOGE(TAG, "Error deselecting touch device");
-		    }
+            // ==== Test select/deselect ====
+            ret = spi_device_select(ts_spi, 1);
+            if (ret != ESP_OK) {
+                ESP_LOGE(TAG, "Error selecting touch device");
+            }
+            ret = spi_device_deselect(ts_spi);
+            if (ret != ESP_OK) {
+                ESP_LOGE(TAG, "Error deselecting touch device");
+            }
 
-			ESP_LOGD(TAG, "attached TS device, speed=%u", spi_get_speed(ts_spi));
-			if (dconfig->touch == TOUCH_TYPE_STMPE610) {
-				stmpe610_Init();
-				vTaskDelay(10 / portTICK_RATE_MS);
-				uint32_t tver = stmpe610_getID();
-				ESP_LOGW(TAG, "STMPE touch initialized, ver: %04x - %02x", tver >> 8, tver & 0xFF);
-			}
-	    }
-	    else {
-	        ESP_LOGE(TAG, "Error adding touch device to spi bus");
-	    	ts_spi->handle = NULL;
-	        dconfig->touch = TOUCH_TYPE_NONE;
-	    }
-	}
-	return ESP_OK;
+            ESP_LOGD(TAG, "attached TS device, speed=%u", spi_get_speed(ts_spi));
+            if (dconfig->touch == TOUCH_TYPE_STMPE610) {
+                stmpe610_Init();
+                vTaskDelay(10 / portTICK_RATE_MS);
+                uint32_t tver = stmpe610_getID();
+                ESP_LOGW(TAG, "STMPE touch initialized, ver: %04x - %02x", tver >> 8, tver & 0xFF);
+            }
+        } else {
+            ESP_LOGE(TAG, "Error adding touch device to spi bus");
+            ts_spi->handle = NULL;
+            dconfig->touch = TOUCH_TYPE_NONE;
+        }
+    }
+    return ESP_OK;
 }
 
 //=================================================
@@ -1220,8 +1261,7 @@ esp_err_t TFT_display_init(display_config_t *dconfig)
         vTaskDelay(20 / portTICK_RATE_MS);
         gpio_set_level(dconfig->rst, 1);
         vTaskDelay(150 / portTICK_RATE_MS);
-    }
-    else {
+    } else {
         disp_spi_transfer_cmd_data(TFT_CMD_SWRESET, NULL, 0);
         vTaskDelay(200 / portTICK_RATE_MS);
     }
@@ -1235,38 +1275,31 @@ esp_err_t TFT_display_init(display_config_t *dconfig)
         }
         commandList(ILI9341_init);
         _tft_setBitsPerColor(bits_per_color);
-    }
-    else if (tft_disp_type == DISP_TYPE_ILI9488) {
+    } else if (tft_disp_type == DISP_TYPE_ILI9488) {
         commandList(ILI9488_init);
-    }
-    else if (tft_disp_type == DISP_TYPE_ST7789V) {
+    } else if (tft_disp_type == DISP_TYPE_ST7789V) {
         commandList(ST7789V_init);
         _tft_setBitsPerColor(bits_per_color);
-    }
-    else if (tft_disp_type == DISP_TYPE_ST7735) {
+    } else if (tft_disp_type == DISP_TYPE_ST7735) {
         commandList(STP7735_init);
-    }
-    else if (tft_disp_type == DISP_TYPE_ST7735R) {
+    } else if (tft_disp_type == DISP_TYPE_ST7735R) {
         commandList(STP7735R_init);
         commandList(Rcmd2green);
         commandList(Rcmd3);
-    }
-    else if (tft_disp_type == DISP_TYPE_ST7735B) {
+    } else if (tft_disp_type == DISP_TYPE_ST7735B) {
         commandList(STP7735R_init);
         commandList(Rcmd2red);
         commandList(Rcmd3);
         uint8_t dt = 0xC0;
         disp_spi_transfer_cmd_data(TFT_MADCTL, &dt, 1);
-    }
-    else if (tft_disp_type == DISP_TYPE_GENERIC) {
+    } else if (tft_disp_type == DISP_TYPE_GENERIC) {
         ESP_LOGW(TAG, "Generic display type, you must init the display manually");
         ///Enable backlight
         if (dconfig->bckl >= 0) {
             gpio_set_level(dconfig->bckl, dconfig->bckl_on);
         }
         return ESP_OK;
-    }
-    else {
+    } else {
         ESP_LOGE(TAG, "Display type %d not supported", tft_disp_type);
         disp_deselect();
         return ESP_FAIL;
@@ -1276,7 +1309,9 @@ esp_err_t TFT_display_init(display_config_t *dconfig)
 
     // Clear screen
     _tft_setRotation(PORTRAIT);
-    TFT_pushColorRep(0, 0, _width-1, _height-1, (color_t){0,0,0}, (uint32_t)(_height*_width));
+    TFT_pushColorRep(0, 0, _width - 1, _height - 1, (color_t) {
+        0, 0, 0
+    }, (uint32_t)(_height * _width));
 
     ///Enable backlight
     if (dconfig->bckl >= 0) {
