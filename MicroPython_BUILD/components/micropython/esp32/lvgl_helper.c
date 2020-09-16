@@ -51,9 +51,10 @@ STATIC void lcd_flush(struct _disp_drv_t *disp_drv, const lv_area_t *area, lv_co
         p[i].g = (color_p[i].full >> 3) & 0x0fc;
         p[i].b = (color_p[i].full << 3) & 0x0f8;
     }
-    if (disp_select()) return;
+    if (disp_select())
+        return;
     send_data(area->x1, area->y1, area->x2, area->y2, size, p, 1);
-    if (disp_deselect()) return;
+    disp_deselect();
     free(p);
     lv_disp_flush_ready(disp_drv);
 }

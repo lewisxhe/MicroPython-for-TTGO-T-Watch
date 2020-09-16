@@ -96,8 +96,10 @@ esp_err_t iot_ft5x06_touch_report(ft5x06_handle_t device, touch_info_t *ifo)
                 ifo->cury[i] <<= 8;
                 ifo->cury[i] |= data[0x06 + i * 6];
             }
+#if !defined(CONFIG_TWATCH_MODEL_2020_V1) || !defined(CONFIG_TWATCH_MODEL_2020_V1)
             ifo->curx[0] = map(ifo->curx[0], 0, 320, 0, 240);
             ifo->cury[0] = map(ifo->cury[0], 0, 320, 0, 240);
+#endif
             ifo->touch_event = TOUCH_EVT_PRESS;
         } else {
             ifo->touch_event = TOUCH_EVT_RELEASE;

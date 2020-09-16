@@ -27,8 +27,11 @@
 
 #include "esp_log.h"
 
+#define FT62XX_SLAVE_ADDRESS        0x38
+
+
 static i2c_bus_t *i2c_handle = NULL;
- ft5x06_handle_t *ft5x06_handle = NULL;
+ft5x06_handle_t *ft5x06_handle = NULL;
 
 mp_obj_t touchscreen_init(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args)
 {
@@ -57,7 +60,7 @@ mp_obj_t touchscreen_init(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_
     i2c_handle = (i2c_bus_t *) calloc(1, sizeof(i2c_bus_t));
     i2c_handle->i2c_port = config->bus_id;
 
-    ft5x06_handle = iot_ft5x06_create((i2c_bus_handle_t *)i2c_handle, 0x38);
+    ft5x06_handle = iot_ft5x06_create((i2c_bus_handle_t *)i2c_handle, FT62XX_SLAVE_ADDRESS);
     if ( ft5x06_handle == NULL)
         mp_raise_ValueError("obj create fail");
 
