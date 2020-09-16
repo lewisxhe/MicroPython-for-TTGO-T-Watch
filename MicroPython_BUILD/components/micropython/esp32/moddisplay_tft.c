@@ -178,25 +178,33 @@ STATIC void spi_deinit_internal(display_tft_obj_t *self)
     }
 }
 
-#define TFT_WIDTH   240
-#define TFT_HEIGHT  240
-#define TFT_BL      12
-#define TFT_MISO    0
-#define TFT_MOSI    19
-#define TFT_SCLK    18
-#define TFT_CS      5
-#define TFT_DC      27
-#define TFT_DEF_SPEED   40000000
-// #define TFT_DEF_ORIENT  0   // 2019
-#define TFT_DEF_ORIENT  2   // 2020 
+#define TFT_WIDTH               240
+#define TFT_HEIGHT              240
+#define TFT_BL                  12
+#define TFT_MISO                0
+#define TFT_MOSI                19
+#define TFT_SCLK                18
+#define TFT_CS                  5
+#define TFT_DC                  27
+#define TFT_DEF_SPEED           40000000
 #define COLOR_INVERSION
+
+#if defined(CONFIG_TWATCH_MODEL_2020_V1) || defined(CONFIG_TWATCH_MODEL_2020_V2)
+#define TFT_DEF_ORIENT          2
+#else
+#define TFT_DEF_ORIENT          0
+#endif
 
 //-----------------------------------------------------------------------------------------------
 STATIC mp_obj_t display_tft_init(mp_uint_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args)
 {
 
-// #if TWATCH_MODEL_2019_TOUCHPALNE || TWATCH_MODEL_2019_NO_TP || TWATCH_MODEL_2019_BLOCK || TWATCH_MODEL_2020_V1 ||TWATCH_MODEL_2020_V2
-#if 1
+#if defined(CONFIG_TWATCH_MODEL_2019_TOUCHPALNE) || \
+    defined(CONFIG_TWATCH_MODEL_2019_NO_TP)    ||   \
+    defined(CONFIG_TWATCH_MODEL_2019_BLOCK) ||  \
+    defined(CONFIG_TWATCH_MODEL_2020_V1)    ||  \
+    defined(CONFIG_TWATCH_MODEL_2020_V2)
+
     display_tft_obj_t *self = pos_args[0];
     esp_err_t ret;
 

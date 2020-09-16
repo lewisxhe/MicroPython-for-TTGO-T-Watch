@@ -14,6 +14,8 @@ menu "Hadrware select"
         bool "LilyGo T-Watch 2020 V1"
     config TWATCH_MODEL_2020_V2
         bool "LilyGo T-Watch 2020 V2"
+    config CUSTOM_MODEL
+        bool "Other board."
     endchoice
 endmenu
 
